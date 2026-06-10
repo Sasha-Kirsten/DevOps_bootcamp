@@ -1,4 +1,3 @@
-
 # Docker Compose: Run Multiple Docker Containers
 
 ## Overview
@@ -23,12 +22,18 @@ services:
         depends_on:
             - db
 
-    db:
-        image: postgres:latest
+    mongodb:
+        image: mongodb:latest
         environment:
-            POSTGRES_PASSWORD: example
+            MONGODB_PASSWORD: example
         volumes:
-            - db_data:/var/lib/postgresql/data
+            - db_data:/var/lib/mongodb/data
+    mongo_express:
+        image: mongo_express:latest
+        environment:
+            MONDO_EXPRESS_PASSWORD: example
+        volumes:
+            - express:
 
 volumes:
     db_data:
