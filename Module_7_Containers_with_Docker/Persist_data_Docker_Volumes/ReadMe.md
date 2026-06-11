@@ -1,4 +1,3 @@
-
 # Docker Volumes: Persisting Data
 
 ## Overview
@@ -21,7 +20,9 @@ Docker volumes are the mechanism for persisting data generated and used by Docke
 - Performance improvements on certain systems
 
 ## Common Docker Volume Commands
-
+To create a Docker Volume, we would need to first create volume docker command. 
+To bound the created Volume to the container that we about the run, we need to execute the docker command to the specific local 
+storage following the requirements for the specific given database.
 ```bash
 # Create a named volume
 docker volume create my_volume

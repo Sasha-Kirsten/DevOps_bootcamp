@@ -12,11 +12,15 @@ This module demonstrates how to containerize a Node.js application using Docker.
 ## Getting Started
 
 ### Build the Docker Image
+We need to build the Docker Image to contain all the requirements receipes of the 
+applications for the container run from. 
 ```bash
 docker build -t nodejs-app .
 ```
 
 ### Run the Container
+After building the Docker Image, we need to run the Image on the container that is 
+connected to the port of 3000.
 ```bash
 docker run -p 3000:3000 nodejs-app
 ```
