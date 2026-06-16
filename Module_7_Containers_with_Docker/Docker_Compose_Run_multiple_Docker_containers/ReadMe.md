@@ -32,9 +32,6 @@ services:
             ME_CONFIG_MONGODB_ADMINPASSWORD: password
         ports:
             - "8081:8081"
-volumes:
-    db_data:
-    express:
 ```
 ### 2. Creat the network 
 We need to create a network for the containers to run and maintain the containers in a secure network.

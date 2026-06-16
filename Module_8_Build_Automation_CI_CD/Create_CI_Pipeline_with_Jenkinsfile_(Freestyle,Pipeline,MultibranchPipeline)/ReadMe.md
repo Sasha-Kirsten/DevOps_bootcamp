@@ -19,6 +19,21 @@ Traditional Jenkins job configuration through the UI.
 - GUI-based configuration
 - Best for simple pipelines
 
+## 1. Accessing Jenkins Server
+After running the Jenkins container, we need to get the initialAdminPassword (in /var/jenkins_home/secrets/initialAdminPassword) to access the Jenkins Server. 
+```bash
+docker ps 
+docker log jenkins_container
+```
+
+## 2. Install application and Plugin
+Install the necessary application and the plugins that is needed for the 
+Jenkins server to run compatible with any used application, using the GUI at Jenkins Server.
+
+## 3. Create Crendentials for Jenkins
+To properlly use Jenkins to work flawlessly with other applications like Docker and AWS.
+The username, password, ssh key (private key).
+
 ### 2. Pipeline (Jenkinsfile)
 Code-as-infrastructure approach using Groovy DSL.
 - Declarative or Scripted syntax
