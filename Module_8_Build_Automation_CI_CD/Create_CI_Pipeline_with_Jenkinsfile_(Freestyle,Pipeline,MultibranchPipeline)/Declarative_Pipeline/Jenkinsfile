@@ -1,0 +1,64 @@
+/**
+ * [Description of the code]
+ *
+ * @param  [paramName] - [description]
+ * @return [description of return value]
+ * @throws [ExceptionType] - [when it is thrown]
+ */
+CODE_CHANGES = getGitChanges()
+ pipeline {
+    agent {
+        tools {
+            maven 'Maven 3.6.3'
+        }
+
+        environment {
+            CODE_CHANGES = getGitChanges()
+            DOCKER_IMAGE = 'maven-app'
+            DOCKER_TAG = "1.0.0"
+        }
+    }
+    stages {
+        stage('Build') {
+            when{
+                expression {
+                    CODE_CHANGES == "true"
+                }
+            }
+            steps {
+                echo 'Building...'
+                sh "npm install docker "
+                sh "docker build --platform linux/amd64 -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
+                // sh "docker build --platform linux/amd64 -t ${env.DOCKER_REPO}:${env.NEW_VERSION} ."
+
+            }
+        }
+        stage('Test') {
+            steps {
+                echo 'Testing...'
+                sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} mvn test"
+                sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} mvn verify"
+            }
+        }
+        stage('Deploy') {
+            steps {
+                echo 'Deploying...'
+                sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
+                sh "docker push ${env.DOCKER_REPO}:${env.NEW_VERSION}"
+            }
+        }
+    } 
+
+    post {
+        success {
+            sh "echo Pipeline completed successfully!"
+            sh "echo Docker images created:"
+            sh "echo   - ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            // sh "echo   - ${DOCKER_IMAGE}:${VERSION}"
+            sh "echo   - ${DOCKER_IMAGE}:latest"
+        }
+        failure {
+            sh "echo Pipeline failed!"
+        }
+    }
+}

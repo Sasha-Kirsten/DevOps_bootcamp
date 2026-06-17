@@ -40,6 +40,15 @@ Code-as-infrastructure approach using Groovy DSL.
 - Version-controlled pipeline definitions
 - Better for complex workflows
 
+## 1. Accessing the Jenkins server
+After accessing the jenkins server, successfully as in the first step in Freestyle job.
+Also, we need to make sure to set up the docker credentials as well, username and password. 
+
+## 2. Set up the environment for Jenkins Script
+We need to set the up the envirionment appropriate for the CI task. In this case, we need to set up environment for Maven and Node.
+
+## 3. 
+
 ### 3. Multibranch Pipeline
 Automatically creates pipelines for different branches.
 - Scans repository for Jenkinsfiles
