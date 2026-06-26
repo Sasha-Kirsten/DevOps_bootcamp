@@ -1,0 +1,35 @@
+# Jenkins
+jenkins-cli.jar
+jenkins.war
+*.hpi
+*.jpi
+
+# Gradle build outputs
+.gradle/
+build/
+out/
+
+# Maven build outputs
+target/
+
+# Java
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / credentials
+*.pem
+*.key
+*.env
+.env.*
