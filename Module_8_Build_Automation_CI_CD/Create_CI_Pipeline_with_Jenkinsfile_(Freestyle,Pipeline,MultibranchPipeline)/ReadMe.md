@@ -45,15 +45,24 @@ After accessing the jenkins server, successfully as in the first step in Freesty
 Also, we need to make sure to set up the docker credentials as well, username and password. 
 
 ## 2. Set up the environment for Jenkins Script
-We need to set the up the envirionment appropriate for the CI task. In this case, we need to set up environment for Maven and Node.
+We need to set the up the envirionment appropriate for the CI task. In this case, we need to set up environment for Maven.
 
-## 3. 
+## 3. Create Jenkinsfile
+For the creation of the automated CI/CD pipeline, we are going to use a scripted Jenskinsfile. This is for the simplicity and consistency for the task. 
+The Jenkinsfile contains the credential variables for the Docker, the building of the jar repository, there is the testing on the Maven code and the deployment for the image onto the docker repository. 
 
 ### 3. Multibranch Pipeline
 Automatically creates pipelines for different branches.
 - Scans repository for Jenkinsfiles
 - Isolated builds per branch
 - Ideal for development workflows
+
+## 1. Set the Jenkins server
+To bulid a full maintainable multi-branch, we need to create the Jenkins project and the Item for the Multibranch Pipeline. 
+
+We need to go to Branch Sources and create a adjust the access the Git repository and use the credentials that we use to store the git repository. The Jenkinsfile should accessable for the Build Configuration. 
+<!-- The other sections is optional.  -->
+
 
 ## Getting Started
 

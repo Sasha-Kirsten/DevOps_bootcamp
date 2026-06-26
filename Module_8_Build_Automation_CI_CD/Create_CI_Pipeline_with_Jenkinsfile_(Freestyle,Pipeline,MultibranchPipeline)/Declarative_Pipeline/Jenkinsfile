@@ -19,6 +19,12 @@ CODE_CHANGES = getGitChanges()
         }
     }
     stages {
+        stage('Checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
         stage('Build') {
             when{
                 expression {
@@ -26,14 +32,23 @@ CODE_CHANGES = getGitChanges()
                 }
             }
             steps {
+
                 echo 'Building...'
+                sh "mvn clean install -U"
+                sh "mvn compile"
+                sh "mvn test"
+                sh "mvn package"
                 sh "npm install docker "
                 sh "docker build --platform linux/amd64 -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
                 // sh "docker build --platform linux/amd64 -t ${env.DOCKER_REPO}:${env.NEW_VERSION} ."
-
             }
         }
         stage('Test') {
+            when{
+                expression {
+                    CODE_CHANGES == "true"
+                }
+            }
             steps {
                 echo 'Testing...'
                 sh "docker run --rm ${DOCKER_IMAGE}:${DOCKER_TAG} mvn test"
@@ -41,6 +56,11 @@ CODE_CHANGES = getGitChanges()
             }
         }
         stage('Deploy') {
+            when{
+                expression {
+                    CODE_CHANGES == "true"
+                }
+            }
             steps {
                 echo 'Deploying...'
                 sh "echo \$DOCKER_PASSWORD | docker login -u \$DOCKER_USERNAME --password-stdin"
