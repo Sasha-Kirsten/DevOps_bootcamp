@@ -1,0 +1,81 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_DEFAULT_REGION = "eu-central-1"
+        TF_DIR = "Module_12_Infrastructure_as_Code_Terraform/Configure_shared_Remote_State"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Terraform Init') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    dir("${TF_DIR}") {
+                        sh '''
+                            terraform init \
+                                -backend-config="bucket=terraform-remote-state-bucket" \
+                                -backend-config="key=terraform.tfstate" \
+                                -backend-config="region=${AWS_DEFAULT_REGION}"
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    dir("${TF_DIR}") {
+                        sh 'terraform plan -out=tfplan'
+                    }
+                }
+            }
+        }
+
+        stage('Approval') {
+            steps {
+                input message: 'Review the plan above. Approve to apply and upload state to S3?', ok: 'Apply'
+            }
+        }
+
+        stage('Terraform Apply') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
+                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
+                ]) {
+                    dir("${TF_DIR}") {
+                        // Applying the plan will create/update resources AND push
+                        // the updated terraform.tfstate to the S3 backend automatically
+                        sh 'terraform apply -auto-approve tfplan'
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        success {
+            echo 'Terraform applied successfully. State file has been uploaded to s3://terraform-remote-state-bucket/terraform.tfstate'
+        }
+        failure {
+            echo 'Pipeline failed. No changes were applied and no state was pushed to S3.'
+        }
+        always {
+            cleanWs()
+        }
+    }
+}
