@@ -1,6 +1,4 @@
-# Configure shared Remote State
-
-## Overview
+## Overview: Health Check EC2 status
 
 
 ## Prerequisites: 

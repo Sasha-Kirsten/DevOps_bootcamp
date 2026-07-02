@@ -1,6 +1,4 @@
-# Configure shared Remote State
-
-## Overview
+## Overview: Website Monitoring Recovery
 
 
 ## Prerequisites: 

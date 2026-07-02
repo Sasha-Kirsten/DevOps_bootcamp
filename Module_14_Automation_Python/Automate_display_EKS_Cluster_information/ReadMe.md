@@ -1,6 +1,4 @@
-# Configure shared Remote State
-
-## Overview
+## Overview: Automate display EKS Cluster Informatics
 
 
 ## Prerequisites: 

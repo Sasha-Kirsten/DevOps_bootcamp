@@ -1,10 +1,9 @@
+## Overview:
 # Automation of the AWS Infrastrucutre, using Terraform (Infrastructure as Code)
-
-## Overview
 
 
 ## Prerequisites: 
-
+# Terraform
 
 
 # Steps:
@@ -33,7 +32,7 @@ Once we created the Terraform variables, we need to integrate the created variab
 
 ## 4. We need to test the main terraform file to see if the there are any errors. 
 
-## 5. 
+## 5. Follow the BEST Practice for implementing the infrastructure using Terraform or another IaC.
 
 
 

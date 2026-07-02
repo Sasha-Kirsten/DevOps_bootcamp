@@ -1,6 +1,4 @@
-# Configure shared Remote State
-
-## Overview
+## Overview: Automate configure EC2 Server Instance
 
 
 ## Prerequisites: 

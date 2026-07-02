@@ -1,6 +1,4 @@
-# Configure shared Remote State
-
-## Overview
+## Overview: Write Countdown Application
 
 
 ## Prerequisites: 
