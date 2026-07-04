@@ -1,0 +1,49 @@
+#!/usr/bin/env groovy
+
+
+@Library('jenkins-shared-library@master')
+
+def gv 
+
+pipeline {
+    agent any
+
+    environment {
+        // Define environment variables here
+        // Example: MY_VAR = 'value'
+        imageName = 'myApp'
+    }
+    stages {
+        stage('Initialize') {
+            steps {
+                script {
+                    gv = load 'Main.groovy'
+                }
+            }
+        }
+        stage('Build') {
+            steps {
+                script {
+                    buildJar()
+                    buildImage(imageName)
+                }
+            }
+        }
+        stage('Test') {
+            steps {
+                script {
+                    runMavenTests()
+                    runMavenIntegrationTests()
+                    runMavenE2ETests()
+                }
+            }
+        }
+        stage('Deploy') {
+            steps {
+                script {
+                    deployApplication()
+                }
+            }
+        }
+    }
+}
