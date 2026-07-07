@@ -10,12 +10,17 @@ This module covers the process of manually deploying a web application to an AWS
 - SSH access configured
 - Basic knowledge of Linux command line
 
-## Steps
+## Before Deploy web to EC2 (Elastic Cloud Compute) (Optional)
+### 1. If you are using a created IAM Account (not root user account), you will need to create an asyncouruous key (public - private key). 
+### 2. To do this, you will need to go to IAM of the root account that created IAM user and generate a "Access Key" under the section Security credentials. 
+### 3. After creating the key, you will need to install the private key into you .ssh branch through your terminal.
+### 4. Then proceed to the steps of deploy the web application to the EC2 Instance. 
 
+## Steps
 ### 1. Launch an EC2 Instance
 - Navigate to AWS Console → EC2 Dashboard
-- Click "Launch Instance"
-- Select an appropriate AMI (Amazon Machine Image)
+- Click "Launch Instance" (big orange button)
+- Select a free tier AMI (Amazon Machine Image)
 - Choose instance type (t2.micro recommended for testing)
 - Configure security groups to allow HTTP (80), HTTPS (443), and SSH (22)
 
