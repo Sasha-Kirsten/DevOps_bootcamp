@@ -1,0 +1,45 @@
+
+pipeline {
+    agent {
+        tools {
+            maven 'Maven 3.6.3'
+        }
+    }
+
+    stages{
+        stage('checkout') {
+            steps {
+                echo 'Checking out source code...'
+                checkout scm
+            }
+        }
+        stage('Build'){
+            steps {
+                echo 'Building...'
+                sh "mvn clean install -U"
+                sh "mvn compile"
+                sh "mvn test"
+                sh "mvn package"
+            }
+        }
+        stage('Test'){
+            steps {
+                echo 'Testing...'
+                sh "mvn test"
+                sh "mvn verify"
+            }
+        }
+        stage('Deploy'){
+            environment {
+                DOCKER_USERNAME = credentials('docker-hub-credentials').username
+                DOCKER_PASSWORD = credentials('docker-hub-credentials').password
+            }
+            steps {
+                echo 'Deploying...'
+                sh 'docker build --platform linux/amd64 -t app:latest .'
+                sh 'docker login -u $DOCKER_USERNAME -p $DOCKER_PASSWORD'
+                sh 'docker push app:latest'
+            }
+        }
+    }
+}
