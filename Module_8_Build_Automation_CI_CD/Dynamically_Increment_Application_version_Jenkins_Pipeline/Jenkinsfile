@@ -1,22 +1,35 @@
 #!/usr/bin/env groovy
-@Library('jenkins-shared-library@master')
+// @Library('jenkins-shared-library@master')
 def gv 
+// gv = load 'CI_steps.groovy'
 pipeline{
+    agent any
     environment{
         patch_version = "1.0.0"
         maven_version = "3.6.3"
         DOCKER_TAG = "1.0.0"
-        Dockerhub_Username = credentials('docker-hub-credentials').username
-        Dockerhub_Password = credentials('docker-hub-credentials').password
+        // Dockerhub_Username = credentials('docker-hub-credentials').username
+        // Dockerhub_Password = credentials('docker-hub-credentials').password
         Dockerhub_Repo = "aleksanderkirsten"
-        gv = load 'CI_steps.groovy'
+        // DOCKERHUB_CREDS = credentials('docker-hub-credentials')
+        // gv = load 'CI_steps.groovy'
     }
-
     stages{
-
+        stage('Init') {
+            steps {
+                script {
+                                    // Load the script in a stage, not in the environment block
+                    gv = load 'CI_step.groovy'
+                }
+            }
+        }
+                
         stage('Increment patch version'){
-            script{
-                patch_version = gv.Increment_Version(patch_version)
+            steps{
+                script{
+                    patch_version = gv.Increment_Version(patch_version)
+                }
+                // patch_version = gv.Increment_Version(patch_version)
             }
         }
 
@@ -27,32 +40,39 @@ pipeline{
         }
 
         stage('Build Image with dynamic Docker Image Tag'){
-            
-            script{
-                gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+            steps{
+                script{
+                    gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+                }
+                // gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
             }
         }
 
         stage('Push Image to private Dockerfile repository'){
-            script{
-                gv.Push_Docker_Image(Dockerhub_Repo, patch_version, Dockerhub_Username, Dockerhub_Password)
+            steps{
+                script{
+                    gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS.username, DOCKERHUB_CREDS.password)
+                }
+                // gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS.username, DOCKERHUB_CREDS.password)
             }
         }
 
         stage('Commit version update of Jenkinsfile back to Git repository'){
-            script{
-                gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
+            steps{
+                script{
+                    gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
+                }
+                // gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
             }
         }
-
     }
 
     post{
         success{
             echo "Build succeeded. Version updated to ${patch_version}."
-            echo "Docker image pushed to Docker Hub with tag: ${DOCKER_TAG}."
+            echo "Docker image pushed to Docker Hub with tag: ${patch_version}."
         }
-        failed{
+        failure{
             echo "Build failed. Please check the logs for details."
         }
 
