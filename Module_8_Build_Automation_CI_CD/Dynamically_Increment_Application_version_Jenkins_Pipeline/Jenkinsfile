@@ -11,7 +11,7 @@ pipeline{
         // Dockerhub_Username = credentials('docker-hub-credentials').username
         // Dockerhub_Password = credentials('docker-hub-credentials').password
         Dockerhub_Repo = "aleksanderkirsten"
-        // DOCKERHUB_CREDS = credentials('docker-hub-credentials')
+        DOCKERHUB_CREDS = credentials('docker-hub-credentials')
         // gv = load 'CI_steps.groovy'
     }
     stages{
@@ -34,8 +34,10 @@ pipeline{
         }
 
         stage('Build Java Application and clean old artifacts'){
-            script{
-                gv.Maven_clean_and_build(maven_version)
+            steps{
+                script{
+                    gv.Maven_clean_and_build(maven_version)
+                }
             }
         }
 
@@ -51,7 +53,7 @@ pipeline{
         stage('Push Image to private Dockerfile repository'){
             steps{
                 script{
-                    gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS.username, DOCKERHUB_CREDS.password)
+                    gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS_USR, DOCKERHUB_CREDS_PSW)
                 }
                 // gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS.username, DOCKERHUB_CREDS.password)
             }
