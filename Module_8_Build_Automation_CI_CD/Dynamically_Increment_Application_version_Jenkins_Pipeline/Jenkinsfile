@@ -6,7 +6,7 @@ pipeline{
     agent any
     environment{
         patch_version = "1.0.0"
-        maven_version = "3.6.3"
+        // maven_version = "3.6.3"
         DOCKER_TAG = "1.0.0"
         // Dockerhub_Username = credentials('docker-hub-credentials').username
         // Dockerhub_Password = credentials('docker-hub-credentials').password
