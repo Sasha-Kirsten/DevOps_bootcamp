@@ -11,7 +11,7 @@ pipeline{
         DOCKER_TAG = "1.0.0"
         // Dockerhub_Username = credentials('docker-hub-credentials').username
         // Dockerhub_Password = credentials('docker-hub-credentials').password
-        Dockerhub_Repo = "aleksanderkirsten/simple-maven-app"
+        Dockerhub_Repo = "aleksanderk534/simple-maven-app"
         DOCKERHUB_CREDS = credentials('docker-hub-credentials')
         // gv = load 'CI_steps.groovy'
     }
