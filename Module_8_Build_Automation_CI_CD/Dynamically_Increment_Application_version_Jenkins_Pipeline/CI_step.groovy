@@ -39,3 +39,5 @@ def Commit_Version_Update(String gitUsername, String gitEmail, String gitBranch,
     sh "git commit -m '${gitCommitMessage}'"
     sh "git push origin ${gitBranch}"
 }
+
+return this 
