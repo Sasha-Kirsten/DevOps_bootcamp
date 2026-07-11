@@ -36,8 +36,10 @@ def Commit_Version_Update(String gitUsername, String gitEmail, String gitBranch,
     sh "git config user.name ${gitUsername}"
     sh "git config user.email ${gitEmail}"
     sh "git add ."
-    sh "git commit -m '${gitCommitMessage}'"
-    sh "git push origin ${gitBranch}"
+    // sh "git commit -m '${gitCommitMessage}'"
+    // sh "git push origin ${gitBranch}"
+    sh "git commit -m 'Increment version ${patch_version}' || true"
+
 }
 
 return this 
