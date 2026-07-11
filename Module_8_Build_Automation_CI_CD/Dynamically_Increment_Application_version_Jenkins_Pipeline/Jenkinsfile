@@ -1,8 +1,6 @@
-
-
-
-
-
+#!/usr/bin/env groovy
+@Library('jenkins-shared-library@master')
+def gv 
 pipeline{
     environment{
         patch_version = "1.0.0"
@@ -11,29 +9,40 @@ pipeline{
         Dockerhub_Username = credentials('docker-hub-credentials').username
         Dockerhub_Password = credentials('docker-hub-credentials').password
         Dockerhub_Repo = "aleksanderkirsten"
-        
+        gv = load 'CI_steps.groovy'
     }
 
     stages{
 
         stage('Increment patch version'){
-
+            script{
+                patch_version = gv.Increment_Version(patch_version)
+            }
         }
 
         stage('Build Java Application and clean old artifacts'){
-
+            script{
+                gv.Maven_clean_and_build(maven_version)
+            }
         }
 
         stage('Build Image with dynamic Docker Image Tag'){
-
+            
+            script{
+                gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+            }
         }
 
         stage('Push Image to private Dockerfile repository'){
-
+            script{
+                gv.Push_Docker_Image(Dockerhub_Repo, patch_version, Dockerhub_Username, Dockerhub_Password)
+            }
         }
 
         stage('Commit version update of Jenkinsfile back to Git repository'){
-
+            script{
+                gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
+            }
         }
 
     }
