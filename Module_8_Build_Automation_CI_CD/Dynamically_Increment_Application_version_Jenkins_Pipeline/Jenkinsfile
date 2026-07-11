@@ -44,8 +44,10 @@ pipeline{
 
         stage('Build Image with dynamic Docker Image Tag'){
             steps{
-                script{
-                    gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+                dir('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline'){
+                    script{
+                        gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+                    }
                 }
                 // gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
             }
