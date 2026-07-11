@@ -5,6 +5,7 @@ def gv
 pipeline{
     agent any
     environment{
+        PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${env.PATH}"
         patch_version = "1.0.0"
         maven_version = "3.6.3"
         DOCKER_TAG = "1.0.0"
@@ -36,7 +37,7 @@ pipeline{
         stage('Build Java Application and clean old artifacts'){
             steps{
                 script{
-                    gv.Maven_clean_and_build('/Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/src/main/java/com/example')
+                    gv.Maven_clean_and_build('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/src/main/java/com/example')
                 }
             }
         }
