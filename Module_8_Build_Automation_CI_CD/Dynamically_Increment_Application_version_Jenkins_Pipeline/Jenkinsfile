@@ -37,7 +37,7 @@ pipeline{
         stage('Build Java Application and clean old artifacts'){
             steps{
                 script{
-                    gv.Maven_clean_and_build('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/src/main/java/com/example')
+                    gv.Maven_clean_and_build('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/pom.xml')
                 }
             }
         }
