@@ -1,0 +1,51 @@
+
+
+
+
+
+pipeline{
+    environment{
+        patch_version = "1.0.0"
+        maven_version = "3.6.3"
+        DOCKER_TAG = "1.0.0"
+        Dockerhub_Username = credentials('docker-hub-credentials').username
+        Dockerhub_Password = credentials('docker-hub-credentials').password
+        Dockerhub_Repo = "aleksanderkirsten"
+        
+    }
+
+    stages{
+
+        stage('Increment patch version'){
+
+        }
+
+        stage('Build Java Application and clean old artifacts'){
+
+        }
+
+        stage('Build Image with dynamic Docker Image Tag'){
+
+        }
+
+        stage('Push Image to private Dockerfile repository'){
+
+        }
+
+        stage('Commit version update of Jenkinsfile back to Git repository'){
+
+        }
+
+    }
+
+    post{
+        success{
+            echo "Build succeeded. Version updated to ${patch_version}."
+            echo "Docker image pushed to Docker Hub with tag: ${DOCKER_TAG}."
+        }
+        failed{
+            echo "Build failed. Please check the logs for details."
+        }
+
+    }
+}
