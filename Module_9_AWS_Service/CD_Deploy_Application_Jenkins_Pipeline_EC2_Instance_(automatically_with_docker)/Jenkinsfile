@@ -1,0 +1,54 @@
+#!/usr/bin/env groovy
+library identifier: 'jenkins-shared-library@main', retriever: modernSCM(
+    [$class: 'GitSCMSource',
+    remote: '',
+    credentialsId: 'github-credentials'
+    ]
+)
+
+
+
+
+pipeline{
+    agent any 
+    tools{
+        maven 'Maven'
+    }
+    environment{
+
+    }
+    stages{
+        stage('Init') {
+            steps {
+                script {
+                    echo "Loading the .groovy script"
+                    // Load the script in a stage, not in the environment block
+                    // gv = load 'Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/CI_step.groovy'
+                }
+            }
+        }
+
+
+
+
+
+
+
+
+
+        stage{
+            steps{
+                script{
+                    echo "Deploying Docker Image to EC2 Instance"
+                    // def shellCmd = "bash ./server-cmds.sh"
+                    // def dockerComposeCmd = "docker-compose -f docker-compose.yml up --detach"
+                    def dockerCmd = "docker run -p 3080:3080 -d aleksanderk534/simple-maven-app2:${patch_version}"
+                    sshagent(['ec2-server-key']) {
+                        // sh 'scp docker-compose.yml ec2-user@your-ec2-instance-ip:/home/ec2-user/docker-compose.yml'
+                        sh "ssh -o StrictHostKeyChecking=no ec2-user@your-ec2-instance-ip '${dockerCmd}'"
+                    }
+                }
+            }
+        }
+    }
+}
