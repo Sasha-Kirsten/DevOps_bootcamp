@@ -1,10 +1,12 @@
+# ---- Build Stage ----
 FROM maven:3.9-amazoncorretto-21-alpine AS build
 WORKDIR /app
-COPY /myapp/pom.xml .
+COPY myapp/pom.xml .
 RUN mvn dependency:go-offline -B
-COPY /myapp/src ./src
+COPY myapp/src ./src
 RUN mvn clean package -DskipTests
 
+# ---- Run Stage ----
 FROM amazoncorretto:21-alpine
 WORKDIR /app
 EXPOSE 8080

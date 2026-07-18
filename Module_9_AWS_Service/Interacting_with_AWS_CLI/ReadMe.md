@@ -19,6 +19,7 @@ This module covers how to interact with Amazon Web Services (AWS) using the AWS 
 ## Getting Started
 
 ### 1. Install AWS CLI
+We need to execute commands to install the aws cli into the local desktop and to be able to access the AWS servers'.
 ```bash
 curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
 unzip awscliv2.zip
@@ -26,11 +27,13 @@ sudo ./aws/install
 ```
 
 ### 2. Configure Credentials
+To set up the access to the spceific Region and AWS account access, we need to configure the environment to be able to access the identity.
 ```bash
 aws configure
 ```
 
 ### 3. Verify Installation
+After configuring the Region and the Avaliability Zone, we need to access the identity to the AWS CLI on the remote desktop and create/destroy EC2...
 ```bash
 aws --version
 aws sts get-caller-identity
