@@ -28,24 +28,40 @@ pipeline{
             }
         }
 
+        stage('Build') {
+            steps{
+                script{
+                    echo "Building Docker Image"
+                    def dockerBuildCmd = "docker build -t aleksanderk534/simple-maven-app2:${patch_version} ."
+                    sh "${dockerBuildCmd}"
+                }
+            }
+        }
 
-
-
-
-
-
-
+        stage('Push') {
+            steps{
+                script{
+                    echo "Pushing Docker Image to Docker Hub"
+                    def dockerLoginCmd = "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
+                    def dockerPushCmd = "docker push aleksanderk534/simple-maven-app2:${patch_version}"
+                    sh "${dockerLoginCmd}"
+                    sh "${dockerPushCmd}"
+                }
+            }
+        }
 
         stage('Deploy') {
             steps{
                 script{
                     echo "Deploying Docker Image to EC2 Instance"
-                    def shellCmd = "bash ./server-cmds.sh"
-                    def dockerComposeCmd = "docker-compose -f docker-compose.yml up --detach"
-                    // def dockerCmd = "docker run -p 3080:3080 -d aleksanderk534/simple-maven-app2:${patch_version}"
-                    sshagent(['ec2-server-key']) {
-                        sh 'scp docker-compose.yml ec2-user@your-ec2-instance-ip:/home/ec2-user/docker-compose.yml'
-                        // sh "ssh -o StrictHostKeyChecking=no ec2-user@your-ec2-instance-ip '${dockerCmd}'"
+                    withCredentials([
+                        string(credentialsId: 'ec2-instance-ip', variable: 'EC2_IP')
+                    ]) {
+                        def dockerComposeCmd = "docker-compose -f docker-compose.yml up --detach"
+                        sshagent(['aws_access_key_id']) {
+                            sh "scp -o StrictHostKeyChecking=no docker-compose.yml ec2-user@${EC2_IP}:/home/ec2-user/docker-compose.yml"
+                            sh "ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} '${dockerComposeCmd}'"
+                        }
                     }
                 }
             }
