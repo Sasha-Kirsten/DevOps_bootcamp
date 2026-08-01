@@ -8,7 +8,17 @@
 
 # Steps:
 
+## 1.
 
-## Verification
+## 2.
+
+
+## Getting Started
+1. 
+2. 
+3.
 
 ## Resources
+- []()
+- []()
+- []()

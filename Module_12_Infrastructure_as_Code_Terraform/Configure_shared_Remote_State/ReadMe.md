@@ -6,17 +6,23 @@
 
 
 # Steps:
-# 1. Create the terraform files.
-# We need to create the terraform files and the terraform variable file. Follow the best practices of code implementation for the completion of the infrastructure. 
+## 1. Create the terraform files.
+We need to create the terraform files and the terraform variable file. Follow the best practices of code implementation for the completion of the infrastructure. 
 
-# 2. Create the Backup storage.
-# Create a Backup storage using the Terraform Cloud or other alternative cloud service like AWS S3.
+## 2. Create the Backup storage.
+Create a Backup storage using the Terraform Cloud or other alternative cloud service like AWS S3.
 
-# 3. Store the changes.
-# While following the best practice of implementation, we need to make sure we save the back up files on the cloud service.
+## 3. Store the changes.
+While following the best practice of implementation, we need to make sure we save the back up files on the cloud service.
 
 
 
-## Verification
+## Getting Started
+1. 
+2. 
+3.
 
 ## Resources
+- []()
+- []()
+- []()

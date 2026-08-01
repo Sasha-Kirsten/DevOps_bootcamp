@@ -52,9 +52,16 @@ aws ec2 run-instances \
 > --subnet-id subnet-number 
 ```
 
+### 3. Verify Installation (Optional)
+After configuring the Region and the Avaliability Zone, we need to access the identity to the AWS CLI on the remote desktop and create/destroy EC2...
+```bash
+aws --version
+aws sts get-caller-identity
+```
 
 
-### 3. Testing different commands onto the AWS CLI 
+
+### 4. Testing different commands onto the AWS CLI 
 To manage permissions and user access securely, we need to interact with the AWS Identity and Access Management (IAM) service. The following commands demonstrate how to create a new IAM user and group, add the user to the group, and assign necessary permission policies. We will also set up an AWS Console login profile with a password reset requirement, create a custom policy from a JSON file, and generate access keys for programmatic CLI access.
 ```bash
 aws iam create-group --group-name MyGroupCli 
@@ -80,13 +87,6 @@ aws iam attach-group-policy --group-name MyGroupCli --policy-run arn::aws::
 aws iam create-access-key --user-name MyUserCli 
 
 aws uan create-user --user-name test 
-```
-
-### 3. Verify Installation
-After configuring the Region and the Avaliability Zone, we need to access the identity to the AWS CLI on the remote desktop and create/destroy EC2...
-```bash
-aws --version
-aws sts get-caller-identity
 ```
 
 ## Common Commands
