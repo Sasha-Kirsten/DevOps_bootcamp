@@ -1,0 +1,44 @@
+---
+- name: Install java and net-tools 
+  hosts: nexus_server
+  tasks:
+    - name: Update apt repo and cache 
+      apt: update_cache=yes force_apt_get=yes cache_valid_time=3600 
+    - name: Install Java 8
+      apt: name=openjdk-8-jre-headless
+    - name: Install net-tools 
+      apt: name=net-tools 
+
+- name: Downloads and unpack Nexus installer
+  hosts: nexus_server
+  tasks:
+    - name: Check nexus folder stats 
+      stat:
+        path: /opt/nexus 
+      register: stat_result 
+    - name: Download Nexus 
+      get_url:
+        url: 
+        dest: 
+
+- name: Install Docker 
+  hosts: aws_ec2 
+  become: yes 
+  tasks: 
+    - name: Install Docker 
+      yum:
+        name: docker 
+        update_cache: yes 
+        state: present 
+    - name: Start docker daemon 
+      systemd: 
+        name: docker 
+        state: started 
+
+- name: Create new linux user 
+  hosts: aws_ec2 
+  become: yes 
+  tasks:
+    - name: Create new linux user 
+      user:
+      

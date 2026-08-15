@@ -1,0 +1,46 @@
+---
+- name: Deploy app in new namespace
+  tasks:
+    - name: Create a k8s namespace 
+      kubernetes.core.k8s:
+        name: myapp 
+        api_version: v1
+        kind: Namespace 
+        state: present 
+        kubeconfig: /Users/aleksanderkirsten/terraform/kubeconfig_myapp-eks-cluster
+    - name: Deploy nginx app 
+      kubernetes.core.k8s:
+        src: ~/demo-projects/K8s-Files/nginx-config.yaml 
+        state: present 
+        kubeconfig: /Users/aleksanderkirsten/terraform/kubeconfig_myapp-eks-cluster 
+        namespace: myapp 
+  
+# - name: Create a Service object from an inline definition
+#   kubernetes.core.k8s:
+#     state: present
+#     definition:
+#       apiVersion: v1
+#       kind: Service
+#       metadata:
+#         name: web
+#         namespace: testing 
+#         labels:
+#           app: galaxy
+#           service: web 
+#       spec:
+#         selectors:
+#           app: galaxy
+#           service: web 
+#         ports:
+#         - protocol: TCP
+#           targetPort: 8000
+#           name: port-8000-tcp 
+#           port: 8000 
+
+# - name: Remove an existing Service object 
+#   kubernetes.core.k8s:
+#     state: absent 
+#     api_version: v1 
+#     kind: Service 
+#     namespace: testing 
+#     name: web 
