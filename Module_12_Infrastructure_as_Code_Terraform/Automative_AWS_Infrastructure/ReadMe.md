@@ -3,7 +3,7 @@
 
 
 ## Prerequisites: 
-# Terraform
+# -- Terraform
 
 
 # Steps:
@@ -31,15 +31,24 @@ Lastly but not least important, we need to create variable for the amazon machin
 Once we created the Terraform variables, we need to integrate the created variables to consist of other terraform variables that are vital for the variable to function properlly. For instance, a public subnet needs to contain a security group and the network address translation gateway and a route table.
 
 ## 4. We need to test the main terraform file to see if the there are any errors. 
+By executing terraform command, we can see if there are any missing parameter for declared network component. Furthermore, this is safe appraoch to see how terraform would execute the the main.tf file before executing the "terraform apply" command that would execute the infrastrucutre to the cloud.    
+```bash
+terraform plan
+```
 
 ## 5. Follow the BEST Practice for implementing the infrastructure using Terraform or another IaC.
 
 
 
-## Verification
+## Getting Started
+1. 
+2. 
+3.
 
 ## Resources
-
+- []()
+- []()
+- []()
 
 
 

@@ -1,7 +1,36 @@
+version: '3.8'
+
 services:
-  app:
-    image: nginx:alpine
-    container_name: app
+  jenkins:
+    image: jenkins/jenkins:lts
     ports:
-      - "8080:80"
-    restart: unless-stopped
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+    environment:
+      - JENKINS_OPTS=--httpPort=8080
+    networks:
+      - jenkins-network
+
+  docker:
+    image: docker:dind
+    privileged: true
+    networks:
+      - jenkins-network
+  
+  myapp:
+    build:
+      context: ./myapp
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8080"
+    networks:
+      - jenkins-network
+
+volumes:
+  jenkins_home:
+
+networks:
+  jenkins-network:
+    driver: bridge

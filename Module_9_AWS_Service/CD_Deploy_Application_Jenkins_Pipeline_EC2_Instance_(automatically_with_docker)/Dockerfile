@@ -1,7 +1,12 @@
+FROM maven:3.9-amazoncorretto-21-alpine AS build
+WORKDIR /app
+COPY /myapp/pom.xml .
+RUN mvn dependency:go-offline -B
+COPY /myapp/src ./src
+RUN mvn clean package -DskipTests
+
 FROM amazoncorretto:21-alpine
-
+WORKDIR /app
 EXPOSE 8080
-
-CMD ["sh"]
-
+COPY --from=build /app/target/app.jar app.jar
 ENTRYPOINT ["java", "-jar", "app.jar"]

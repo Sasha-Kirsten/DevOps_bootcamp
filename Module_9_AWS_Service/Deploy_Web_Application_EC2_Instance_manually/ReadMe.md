@@ -25,7 +25,10 @@ This module covers the process of manually deploying a web application to an AWS
 - Configure security groups to allow HTTP (80), HTTPS (443), and SSH (22)
 
 ### 2. Connect to Your Instance
+We need to store the private key into the .ssh branch, where other private keys are stored.
+Then execute chmod command for specific private key with 400 mod. 
 ```bash
+chmod 400 .ssh/your-key.pem 
 ssh -i your-key.pem ec2-user@your-instance-ip
 ```
 
@@ -35,17 +38,25 @@ sudo apt update && sudo apt upgrade -y
 ```
 
 ### 4. Install Required Dependencies
+We need to install the required software and dependencies to run on the instance.
+Afterwards, we need to allow docker to be able to pull the images from docker repo.
+
 ```bash
-sudo apt install -y nodejs npm
+sudo yum install docker
+sudo service docker start
+sudo usermod -aG docker $USER 
+newgrp docker 
+sudo apt install -y nodejs npm (optional) 
+docker pull docker-username/application-app:Patch_Version
 ```
 
 ### 5. Deploy Your Application
-- Upload your application files using SCP or Git
-- Install dependencies: `npm install`
+<!-- - Upload your application files using SCP or Git -->
+<!-- - Install dependencies: `npm install` -->
 - Start the application
 
 ### 6. Configure Web Server
-- Set up Nginx or Apache as a reverse proxy
+<!-- - Set up Nginx or Apache as a reverse proxy -->
 - Configure firewall rules
 
 ## Troubleshooting
