@@ -1,0 +1,40 @@
+pipeline{
+    agent any 
+    stages{
+        stage("copying files to ansible server"){
+            steps{
+                script{
+                    echo "copying all necessary files to ansible server"
+                    sshagent(['ansible-server-key']){
+                        sh "scp -o StrictHostKeyChecking=no ansible/* ec2-user@${ANSIBLE_SERVER_PUBLIC_IP}:/home/ec2-user/ansible"
+
+                        withCredentials([sshUserPrivateKey(credentialsId: 'ec2-server-key', keyFileVariable:'keyfile', usernameVariable: 'user')]) {
+                            sh "scp ${keyfile} root@${ANSIBLE_SERVER_PUBLIC_IP}:/root/.ssh/id_rsa.pem"
+                        }
+                    }
+                }
+            }
+        }
+        stage('Execute Ansible Playbook'){
+            steps{
+                script{
+                    echo "Calling ansible playbook to configure ec2 instance"
+                    def remote = [:]
+                    remote.name = 'ansible-server'
+                    remote.host = "${ANSIBLE_SERVER_PUBLIC_IP}"
+                    remote.user = 'ec2-user'
+                    remote.identityFile = '~/.ssh/id_rsa'
+                    withCredentials([sshUserPrivateKey(credentialsId: 'ec2-server-key', keyFileVariable:'keyfile', usernameVariable: 'user')]) {
+                        remote.user = user
+                        remote.identityFile = keyfile
+                        // sshScript remote: remote, script: 'prepare_ansible_server.sh'
+                        sshCommand remote: remote, command: 'ls -l '
+                        sshCommand remote: remote, command: 'ansible-playbook -i inventory_aws_ec2.yml'
+                        sshCommand remote: remote, command: 'ansible-playbook -i playbook.yml'
+                    }
+                    // sshCommand remote: remote, command: 'ls -l '
+                }
+            }
+        }
+    }
+}
