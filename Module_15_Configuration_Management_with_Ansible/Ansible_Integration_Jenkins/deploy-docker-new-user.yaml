@@ -1,0 +1,29 @@
+---
+- name: Install Docker 
+  hosts: all
+  become: yes 
+  tasks:
+    - name: Install Docker 
+      yum: 
+        name: docker 
+        update_cache: yes 
+        state: present 
+    - name: Start docker daemon 
+      systemd:
+        name: docker 
+        state: started 
+- name: Create new linux user 
+  hosts: all 
+  become: yes 
+  tasks:
+    - name: Create new linux user 
+      user:
+        name: linux_user 
+        groups: adm, docker 
+
+- name: Install Docker_compose 
+  hosts: all
+  become: yes 
+  become_user: linux_user 
+  tasks: 
+  

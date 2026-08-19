@@ -1,0 +1,14 @@
+- name: Copy docker compose 
+  copy: 
+    src: /Users/aleksanderkirsten/Bootcamp/docker-compose.yaml
+    dest: /home/aleksanderkirsten/docker-compose.yaml 
+
+- name: Docker login 
+  docker_login: 
+    registry_url: https://index.docker.id/v1/
+    username: aleksanderkirsten
+    password: "{{docker_password}}"
+
+- name: Start container from compose 
+  community.docker.Docker_compose_v2:
+    project_src: /home/aleksanderkirsten
