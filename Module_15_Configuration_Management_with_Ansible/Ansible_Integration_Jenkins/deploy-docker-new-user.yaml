@@ -21,9 +21,9 @@
         name: linux_user 
         groups: adm, docker 
 
-- name: Install Docker_compose 
-  hosts: all
-  become: yes 
-  become_user: linux_user 
-  tasks: 
+# - name: Install Docker_compose 
+#   hosts: all
+#   become: yes 
+#   become_user: linux_user 
+#   tasks: 
   

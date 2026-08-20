@@ -37,5 +37,5 @@
         name: nana
         group: adm, docker 
 
-- name: Install Docker-compose 
+# - name: Install Docker-compose 
 
