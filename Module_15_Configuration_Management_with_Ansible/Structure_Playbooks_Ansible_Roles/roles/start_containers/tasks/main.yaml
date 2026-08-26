@@ -6,9 +6,11 @@
 - name: Docker login 
   docker_login: 
     registry_url: https://index.docker.id/v1/
+    # registry_url: "{{docker_registry}}""
     username: aleksanderkirsten
+    #  username: "{{docker_username}}""
     password: "{{docker_password}}"
 
 - name: Start container from compose 
-  community.docker.Docker_compose_v2:
+  community.docker.docker_compose_v2:
     project_src: /home/aleksanderkirsten

@@ -35,10 +35,10 @@
         name: docker 
         state: started 
 
-- name: Create new linux user 
-  hosts: aws_ec2 
-  become: yes 
-  tasks:
-    - name: Create new linux user 
-      user:
+# - name: Create new linux user 
+#   hosts: aws_ec2 
+#   become: yes 
+#   tasks:
+#     - name: Create new linux user 
+#       user:
       
