@@ -14,22 +14,22 @@
 
 ## 🚀 Featured Projects
 
-### [End-to-End CI/CD Pipeline with AWS EKS](#)
+### [End-to-End CI/CD Pipeline with AWS EC2](https://github.com/Sasha-Kirsten/CD_Deploy_Application_Jenkins_Pipeline_EC2_Instance_-automatically_with_docker-) (Nearly Completed)
 Built a complete CI/CD workflow using Jenkins, Docker, and Kubernetes, deploying a containerized application to AWS EKS.
-* **Technologies:** Jenkins · Docker · Kubernetes · AWS EKS · Maven
-* [View Project →](#)
+* **Technologies:** Jenkins · Docker · AWS EC2 · Maven
+* [View Project →]((https://github.com/Sasha-Kirsten/CD_Deploy_Application_Jenkins_Pipeline_EC2_Instance_-automatically_with_docker-))
 
-### [Infrastructure Automation with Terraform](#)
+### [Infrastructure Automation with Terraform](https://github.com/Sasha-Kirsten/Terraform_and_AWS_EKS) (Nearly Completed)
 Automated AWS infrastructure provisioning and integrated Terraform into the CI/CD workflow.
 * **Technologies:** Terraform · AWS · Jenkins · Docker
-* [View Project →](#)
+* [View Project →](https://github.com/Sasha-Kirsten/Terraform_and_AWS_EKS)
 
-### [Kubernetes Deployment & Automation](#)
+### [Kubernetes Deployment & Automation](#) (WORK IN PROGRESS)
 Deployed and managed applications on Kubernetes using Helm and infrastructure automation practices.
 * **Technologies:** Kubernetes · Helm · AWS EKS · Docker
 * [View Project →](#)
 
-### [Kubernetes Monitoring](#)
+### [Kubernetes Monitoring](#) (WORK IN PROGRESS)
 Implemented monitoring and alerting using Prometheus and Grafana.
 * **Technologies:** Prometheus · Grafana · Kubernetes · Helm
 * [View Project →](#)
