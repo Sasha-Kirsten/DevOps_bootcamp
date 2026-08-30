@@ -19,6 +19,14 @@ This module demonstrates how to automatically increment application version numb
 - **Pipeline Integration**: Using a declaritive `Jenkinsfile` combined with external Groovy scripts for execution logic
 - **Credential Management**: Securely passing Docker Hub credentials to the pipeline
 
+## Steps to complete the projects
+- **First Step**: Create a Dockerfile for the application so that the app would be containerised and have the required verions of tools.
+- **Second Step**: Create the necessary pom.xml file for the java application to run properlly. 
+- **Third Step**: After testing that all is working, for the container and the creation of maven application, we need to create a pipeline for the Continous Integration pipeline.
+- **Fourth Step**: After creating the initial pipeline, stages in Jenkins (the automation tools for the pipeline) need to be created in a methodological order.  
+- **Fifth Step**: 
+- **Sixth Step**:
+
 ## Prerequisites
 - Jenkins instance configured running on docker container
 - Git repository and Docker Repository access through storing the credentials on Jenkins 
