@@ -1,0 +1,76 @@
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: XXXX 
+spec: 
+  selector:
+    matchLabels:
+      app: XXXX 
+  template: 
+    metadata:
+      labels: 
+        app: XXXX 
+    spec: 
+      containers: 
+      - name: XXXX 
+        image: XXXX 
+        ports:
+        - containerPort: XXXX 
+        env:
+        - name: PORT 
+          value: "8080"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: XXXX 
+spec: 
+  type: ClusterIP
+  selector:
+    app: XXXX 
+  ports:
+  - protocal: TCP 
+    port: XXXX 
+    targetPort: XXXX 
+
+---
+apiVersion: apps/v1 
+kind: Deployment 
+metadata: 
+  name: XXXX 
+spec: 
+  selector:
+    matchLabels:
+      app: XXXX 
+  template:
+    metadata:
+      labels:
+        app: XXXX 
+    spec:
+      containers:
+      - name: service 
+        image: XXXX 
+        ports: 
+        - containerPort: 8080
+        env:
+        - name: PORT 
+          value: "8080"
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          value: "xxxx"
+
+---
+apiVersion: v1 
+kind: Service 
+metadata:
+  name: XXXX 
+spec:
+  type: ClusterIP 
+  selector:
+    app: XXXX 
+  ports:
+  - protocal: TCP 
+    port: 8080 
+    targetPort: 8080
+
