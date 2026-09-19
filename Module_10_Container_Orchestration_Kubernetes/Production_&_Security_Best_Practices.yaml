@@ -1,0 +1,8 @@
+---
+documentation:
+  title: Kubernetes Production and Security Best Practices
+  format: Markdown
+  guide: Production_&_Security_Best_Practices.md
+  description: >-
+    The complete reader-friendly guide covering production reliability,
+    security, observability, and release readiness for Kubernetes workloads.

@@ -1,6 +1,0 @@
-architecture: replicas
-replicasCount: 3
-persistance:
-  storageClass: "linode-block-storage"
-auth:
-  rootPassword: secret-root-pwd 

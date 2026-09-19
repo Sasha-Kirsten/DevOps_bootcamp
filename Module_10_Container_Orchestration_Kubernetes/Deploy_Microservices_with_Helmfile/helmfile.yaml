@@ -1,0 +1,12 @@
+releases:
+  # Both releases use the reusable chart in the sibling directory.
+  # Each release supplies its own application-specific values file.
+  - name: emailservice
+    chart: ../Create_Helm_Chart_for_Microservices
+    values:
+      - values/email-service-values.yaml
+
+  - name: cartservice
+    chart: ../Create_Helm_Chart_for_Microservices
+    values:
+      - values/cart-service-values.yaml

@@ -1,0 +1,16 @@
+# Values for the cartservice Helm release.
+# NGINX is used only as a simple, testable demo container.
+appName: cartservice
+appImage: nginx
+appVersion: "1.27.4"
+appReplicas: 1
+containerPort: 80
+
+containerEnvVars:
+  - name: SERVICE_ROLE
+    value: "cart"
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80

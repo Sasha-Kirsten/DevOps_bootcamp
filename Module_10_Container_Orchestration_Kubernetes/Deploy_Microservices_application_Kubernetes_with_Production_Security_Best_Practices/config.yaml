@@ -1,0 +1,102 @@
+---
+apiVersion: apps/v1 
+kind: Deployment 
+metadata:
+  name: xxxx
+spec: 
+  selector:
+    matchLabels:
+      app: xxx 
+  template:
+    metadata: 
+      labels:
+        app: xxxx 
+    spec:
+      containers:
+      - name: xxxx 
+        image: xxxx 
+        ports:
+        - containerPort: xxxx 
+        ports:
+        - containerPort:
+        env:
+        - name: PORT 
+          value:
+        - name:
+          value: ""
+
+--- 
+apiVersion: v1
+kind: Service 
+metadata:
+  name: xxxx 
+spec:
+  type: ClusterIP
+  selector:
+    app: xxxx 
+    ports:
+    - protocal: TCP 
+      port: xxxx 
+      targetPort: xxxx 
+
+
+---
+apiVersion: apps/v1
+kind: Deployment 
+metadata:
+  name: xxxx 
+spec:
+  selector:
+    matchLabels:
+      app: xxxx 
+  template:
+    metadata:
+      labels:
+        app: xxxx 
+    spec:
+      containers:
+      - name: xxxx 
+        image: xxxx 
+        ports:
+        - containerPort: xxxx 
+        env:
+        - name: PORT 
+          value: xxxx 
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          value: 
+        - name: SHIPPING_SERVICE_ADDR 
+          value: 
+        - name: PAYMENT_SERVICE_ADDR
+          value:
+        - name: EMAIL_SERVICE_ADDR 
+          value:
+        - name: CURRENCY_SERVICE_ADDR
+          value:
+        - name: CART_SERVICE_ADDR 
+
+---
+apiVersion: apps/v1 
+kind: Deployment 
+metadata:
+  name: xxxx
+spec: 
+  selector:
+    matchLabels:
+      app: xxx 
+  template:
+    metadata: 
+      labels:
+        app: xxxx 
+    spec:
+      containers:
+      - name: xxxx 
+        image: xxxx 
+        ports:
+        - containerPort: xxxx 
+      volumenMouts:
+      - name: redis-data
+        mountPath: /data 
+      volumes:
+      - name: redis-data 
+        emptyDis: {} 
+        
