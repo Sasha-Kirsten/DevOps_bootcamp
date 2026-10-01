@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars for local non-secret configuration.
+aws_region   = "us-east-1"
+project_name = "terraform-ci-api"
+environment  = "dev"
+stage_name   = "dev"
+
+additional_tags = {
+  Owner = "your-name"
+}

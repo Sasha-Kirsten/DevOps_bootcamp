@@ -1,0 +1,61 @@
+pipeline {
+	agent any
+
+	options {
+		timestamps()
+		disableConcurrentBuilds()
+	}
+
+	parameters {
+		booleanParam(
+			name: 'RUN_PLAN',
+			defaultValue: false,
+			description: 'Run terraform plan. Requires AWS credentials configured on the Jenkins agent.'
+		)
+	}
+
+	stages {
+		stage('Checkout') {
+			steps {
+				checkout scm
+			}
+		}
+
+		stage('Terraform format') {
+			steps {
+				sh 'terraform fmt -check -recursive'
+			}
+		}
+
+		stage('Terraform initialize') {
+			steps {
+				sh 'terraform init -backend=false -input=false'
+			}
+		}
+
+		stage('Terraform validate') {
+			steps {
+				sh 'terraform validate -no-color'
+			}
+		}
+
+		stage('Terraform plan') {
+			when {
+				expression { return params.RUN_PLAN }
+			}
+			steps {
+				sh 'terraform plan -input=false -no-color -out=tfplan'
+				sh 'terraform show -no-color tfplan > tfplan.txt'
+			}
+		}
+	}
+
+	post {
+		always {
+			archiveArtifacts artifacts: 'tfplan.txt', allowEmptyArchive: true
+		}
+		cleanup {
+			deleteDir()
+		}
+	}
+}

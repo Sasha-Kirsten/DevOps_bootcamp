@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and replace all example values before planning.
+aws_region    = "us-east-1"
+project_name  = "terraform-network-lab"
+environment   = "dev"
+key_pair_name = "replace-with-an-existing-key-pair"
+
+# Replace with your current public IP address. Keep SSH restricted to trusted sources.
+allowed_ssh_cidr_blocks = ["203.0.113.10/32"]
+
+# Restrict HTTP further when this is not a public demonstration.
+allowed_http_cidr_blocks = ["0.0.0.0/0"]
+
+additional_tags = {
+  Owner = "your-name"
+}

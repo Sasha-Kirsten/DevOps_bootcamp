@@ -1,6 +1,49 @@
-# Terraform CI Pipeline
+# Terraform CI Pipeline with Jenkins
 
-This project demonstrates a CI pipeline for validating Terraform infrastructure code automatically.
+This project demonstrates a Jenkins-based CI pipeline for a small serverless AWS API. Terraform packages a Python Lambda function, configures an API Gateway `GET /health` endpoint, and defines the IAM permissions required for the integration.
+
+The Jenkins pipeline is validation-first: every build checks formatting and Terraform configuration without modifying AWS infrastructure. An optional plan stage can be enabled only after AWS credentials have been configured safely in Jenkins.
+
+## Architecture
+
+```text
+Client
+    |
+    | GET /<stage>/health
+    v
+API Gateway (Regional)
+    |
+    v
+AWS Lambda (Python 3.12)
+    |
+    v
+CloudWatch Logs
+```
+
+## What the Configuration Includes
+
+| File | Purpose |
+| --- | --- |
+| `serverless.tf` | Active Lambda, API Gateway, IAM, and deployment resources. |
+| `main.tf` | Preserved legacy draft for comparison; it is fully commented out and not evaluated by Terraform. |
+| `provider.tf` | Terraform, AWS provider, archive provider, and AWS Region configuration. |
+| `variables.tf` | Reusable inputs for naming, region, API stage, Lambda capacity, throttling, and tags. |
+| `lambda_function.py` | Lambda handler packaged into a ZIP by the archive provider. |
+| `outputs.tf` | Lambda function name and API invocation URL. |
+| `jenkinsfile` | Declarative Jenkins pipeline. Configure this lower-case path explicitly in Jenkins, or rename it to `Jenkinsfile` if using the default pipeline script path. |
+| `terraform.tfvars.example` | Safe non-secret local configuration template. |
+
+## Pipeline Overview
+
+The `jenkinsfile` performs these stages:
+
+1. **Checkout** — obtains the Terraform source.
+2. **Terraform format** — runs `terraform fmt -check -recursive`.
+3. **Terraform initialize** — installs providers with `-backend=false`; CI does not need shared state to validate configuration.
+4. **Terraform validate** — checks Terraform syntax and internal references.
+5. **Terraform plan** — optional; only runs when the `RUN_PLAN` build parameter is selected and the Jenkins agent has AWS credentials.
+
+The optional plan is stored as `tfplan.txt` in the Jenkins build artifacts. The pipeline never runs `terraform apply` or `terraform destroy`.
 
 The pipeline helps ensure Terraform configurations are correctly formatted, validated, and safe to review before infrastructure changes are applied.
 
@@ -36,18 +79,17 @@ terraform version
 
 ```text
 Terraform_CI_Pipeline/
-├── .github/
-│   └── workflows/
-│       └── terraform-ci.yml
+├── jenkinsfile
 ├── main.tf
+├── serverless.tf
 ├── variables.tf
 ├── outputs.tf
-├── providers.tf
+├── provider.tf
+├── lambda_function.py
 ├── terraform.tfvars.example
+├── .gitignore
 └── ReadMe.md
 ```
-
-> File names may differ depending on the project configuration.
 
 ## Local Usage
 
@@ -92,74 +134,23 @@ terraform plan
 
 Terraform will display the infrastructure changes it would make without applying them.
 
-## CI Workflow Example
+## Configure Jenkins
 
-A GitHub Actions workflow can run Terraform checks automatically:
-
-```yaml
-name: Terraform CI
-
-on:
-    pull_request:
-        branches:
-            - main
-    push:
-        branches:
-            - main
-
-jobs:
-    terraform:
-        name: Terraform Validation
-        runs-on: ubuntu-latest
-
-        steps:
-            - name: Checkout repository
-                uses: actions/checkout@v4
-
-            - name: Set up Terraform
-                uses: hashicorp/setup-terraform@v3
-
-            - name: Terraform Init
-                run: terraform init -input=false
-
-            - name: Terraform Format Check
-                run: terraform fmt -check -recursive
-
-            - name: Terraform Validate
-                run: terraform validate
-
-            - name: Terraform Plan
-                run: terraform plan -input=false
-```
-
-Save the workflow file in:
+Create a **Pipeline** or **Multibranch Pipeline** job that points to this repository. The Jenkins agent requires Terraform $\ge 1.5$, Git, and network access to the Terraform Registry. For the current lower-case filename, set the pipeline **Script Path** to:
 
 ```text
-.github/workflows/terraform-ci.yml
+jenkinsfile
 ```
+
+Use the default `RUN_PLAN=false` setting for pull requests and routine CI builds. This runs fully offline from AWS account changes: it installs providers, packages the local Lambda function, and validates the configuration.
+
+Enable `RUN_PLAN` only for an approved build with AWS credentials supplied by Jenkins Credentials, an instance profile, or an assumed role. The identity needs read access sufficient for Terraform to refresh the resources it plans. Do not place AWS keys in source files or in `terraform.tfvars`.
 
 ## Secrets and Sensitive Values
 
 Do not store cloud credentials, API keys, passwords, or `terraform.tfvars` files containing sensitive data in the repository.
 
-Use GitHub Actions secrets instead:
-
-1. Open the repository on GitHub.
-2. Go to **Settings** → **Secrets and variables** → **Actions**.
-3. Add the required credentials as repository secrets.
-4. Reference secrets in the workflow using:
-
-```yaml
-${{ secrets.SECRET_NAME }}
-```
-
-Example:
-
-```yaml
-env:
-    AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-```
+For Jenkins, configure cloud access through an AWS-aware credential binding, a short-lived assumed role, or an instance profile. Do not echo credentials in build logs. Keep `RUN_PLAN` disabled until this access is available.
 
 ## Recommended Practices
 
@@ -231,13 +222,13 @@ Read the reported file name and line number, correct the configuration, then rer
 
 ### Plan requires cloud credentials
 
-Some providers need credentials even when creating a plan. Configure the required environment variables locally or add them as GitHub Actions secrets for the CI workflow.
+AWS provider refreshes during a plan require credentials. Configure an AWS identity through Jenkins Credentials, an assumed role, or an instance profile. Keep the default `RUN_PLAN=false` setting when the CI job does not have approved AWS access.
 
 ## Suggested Workflow Improvements
 
 For production-oriented projects, consider adding the following improvements:
 
-- Pin Terraform and provider versions to make builds reproducible.
+- Commit `.terraform.lock.hcl` after provider initialization to make provider selection reproducible.
 - Use a remote backend, such as Amazon S3, Azure Storage, or Terraform Cloud, for shared state.
 - Run `terraform plan -out=tfplan` and preserve the plan as a workflow artifact.
 - Require pull-request reviews before merging infrastructure changes.
@@ -245,27 +236,8 @@ For production-oriented projects, consider adding the following improvements:
 - Add security scanning tools such as `tfsec`, `Checkov`, or `Trivy`.
 - Apply changes only from protected branches after an approved plan review.
 
-## Example Version Constraints
+## CI Result
 
-Define Terraform and provider versions in a `versions.tf` file:
+A successful Jenkins build confirms that Terraform was formatted correctly, initialized with the required providers, and validated. If `RUN_PLAN` was selected and AWS credentials were available, the build also archives a readable plan for review.
 
-```hcl
-terraform {
-    required_version = ">= 1.6.0"
-
-    required_providers {
-        aws = {
-            source  = "hashicorp/aws"
-            version = "~> 5.0"
-        }
-    }
-}
-```
-
-Version constraints help prevent unexpected behavior caused by incompatible Terraform or provider releases.
-
-## CI Status
-
-After the workflow is added, GitHub Actions displays the result for every configured push and pull request. A successful workflow confirms that the Terraform configuration was initialized, formatted correctly, validated, and planned without errors.
-
-A successful plan does not apply infrastructure changes. Review the plan output and approval requirements before running any apply step.
+A successful plan never applies infrastructure changes. Keep `terraform apply` outside this validation job and run it only through an approved deployment workflow.

@@ -6,7 +6,7 @@ This project introduces the automation of AWS infrastructure using Terraform and
 
 Terraform describes the desired infrastructure in `.tf` files. It then compares that configuration with the current AWS environment and creates a plan before making any change. This makes infrastructure easier to review, repeat, and manage as a team.
 
-> **Learning project:** The current `main.tf` is a draft and requires corrections before it can be safely applied to AWS. Read the **Before Applying** section before running `terraform apply`.
+> **Learning project:** This configuration creates billable AWS resources, including a NAT gateway, Elastic IP address, and two EC2 instances. Review the plan and destroy the environment when you finish the exercise.
 
 ## Intended Architecture
 
@@ -54,11 +54,13 @@ Before working through the project, make sure you have:
 
 | File | Purpose |
 | --- | --- |
-| `main.tf` | Defines the AWS provider and infrastructure resources. |
-| `variables.tf` | Intended location for input variable declarations. It is currently empty and should be populated as the configuration is improved. |
+| `main.tf` | Defines the AWS provider, VPC, routing, security groups, AMI lookup, and EC2 instances. |
+| `variables.tf` | Declares the reusable network, instance, access, and tagging inputs. |
+| `versions.tf` | Pins compatible Terraform and AWS provider versions. |
+| `outputs.tf` | Exposes useful VPC and EC2 identifiers and the public web URL. |
+| `terraform.tfvars.example` | Safe template for the required key-pair name and permitted CIDR blocks. |
+| `.gitignore` | Prevents local state and real `terraform.tfvars` files from entering Git. |
 | `ReadMe.md` | Explains the architecture, workflow, and safety checks for this project. |
-
-As the project grows, consider adding `outputs.tf` for useful values such as public IP addresses, `terraform.tfvars` for local non-secret values, and `versions.tf` to pin Terraform and provider versions.
 
 ## Implementation Steps
 
@@ -78,7 +80,7 @@ Automative_AWS_Infrastructure/
 └── ReadMe.md
 ```
 
-### 2. Define reusable input variables
+### 2. Configure reusable input variables
 
 Replace hard-coded values with variables for values that differ between environments. Typical variables for this project include:
 
@@ -91,7 +93,13 @@ Replace hard-coded values with variables for values that differ between environm
 - EC2 key-pair name
 - Resource name and environment tags
 
-An input variable should include a type, description, and safe default only when a default is appropriate. Sensitive values must be marked as sensitive and should be obtained from a secure credential store or the CI/CD environment.
+The declarations are already implemented in `variables.tf`. Copy the safe example inputs before planning, then replace the key-pair name and documentation IP range with real values:
+
+```bash
+cp terraform.tfvars.example terraform.tfvars
+```
+
+`terraform.tfvars` is ignored by Git. Do not use it for credentials; authenticate AWS through a profile, environment variables, or workload identity.
 
 ### 3. Build the network in dependency order
 
@@ -146,7 +154,7 @@ After a successful review of the plan, apply the configuration:
 terraform apply
 ```
 
-Terraform asks for confirmation before applying unless an automation pipeline supplies an approved plan. After deployment, verify the VPC, route tables, security groups, and EC2 connectivity in AWS.
+Terraform asks for confirmation before applying unless an automation pipeline supplies an approved plan. After deployment, verify the VPC, route tables, security groups, and EC2 connectivity in AWS. Terraform prints a `web_url` output for the NGINX page on the public instance; the private instance has no public IP and accepts SSH only from the public instance security group.
 
 ### 7. Clean up learning resources
 
@@ -158,22 +166,19 @@ terraform destroy
 
 Review the destroy plan before confirming it. Do not run this command against an environment containing resources that must be retained.
 
-## Before Applying the Current Configuration
+## Before Applying
 
-Complete these corrections in `main.tf` before running a plan or apply:
+Complete this safety checklist before creating AWS resources:
 
-- [ ] Remove `access_key` and `secret_key` from the provider block. Use an AWS CLI profile, environment variables, or workload identity instead.
-- [ ] Correct the VPC CIDR block. `10.0.0.0.0.0/16` is invalid; a valid example is `10.0.0.0/16`.
-- [ ] Add a suitable Availability Zone to the subnet definitions when needed.
-- [ ] Allocate and configure `aws_eip.nat_eip` before referencing it from the NAT gateway.
-- [ ] Add an internet gateway route to the public route table and a NAT gateway route to the private route table.
-- [ ] Add route-table associations for the public and private subnets.
-- [ ] Remove `security_group_ids` from the subnet resource and `security_group_id` from the route-table resource; these attributes do not belong there.
-- [ ] Use `vpc_security_group_ids` on EC2 instances instead of security-group names.
-- [ ] Replace empty `cidr_blocks` values with restricted, valid CIDR ranges.
-- [ ] Replace the placeholder AMI ID and key-pair name with values valid in the chosen AWS Region.
-- [ ] Confirm that the selected AMI matches the `user_data` package commands. For example, Amazon Linux uses `yum` or `dnf`, while Ubuntu uses `apt`.
-- [ ] Add tags to all resources so costs and ownership can be identified.
+- [ ] Copy `terraform.tfvars.example` to `terraform.tfvars`.
+- [ ] Replace `key_pair_name` with an existing EC2 key pair in the selected AWS Region.
+- [ ] Replace `203.0.113.10/32` with your current trusted public IP or approved administrator CIDR range.
+- [ ] Review `allowed_http_cidr_blocks`; `0.0.0.0/0` makes the demo web page public.
+- [ ] Confirm AWS authentication works without credentials in Terraform files, for example with `aws sts get-caller-identity`.
+- [ ] Confirm you accept the ongoing NAT gateway and Elastic IP charges while this project exists.
+- [ ] Review `terraform plan` for the exact Region, AMI, tags, and resources before applying.
+
+The configuration discovers the latest Amazon Linux 2023 x86_64 AMI published by Amazon in the chosen Region. Its user-data scripts use `dnf`, matching that operating system.
 
 ## Terraform and AWS Best Practices
 
@@ -189,7 +194,7 @@ Complete these corrections in `main.tf` before running a plan or apply:
 ## Getting Started
 
 1. Install Terraform and authenticate to AWS without putting credentials in source files.
-2. Review the **Before Applying** checklist and correct the draft infrastructure configuration.
+2. Copy `terraform.tfvars.example` to `terraform.tfvars` and complete the **Before Applying** checklist.
 3. Run `terraform init`, `terraform fmt`, `terraform validate`, and `terraform plan`.
 4. Review the plan, apply it only when it matches the intended architecture, and verify the deployed resources.
 5. Run `terraform destroy` when the practice environment is no longer required.
@@ -203,10 +208,8 @@ Complete these corrections in `main.tf` before running a plan or apply:
 
 ## Topics to Add Later
 
-- A corrected and fully variable-driven `main.tf`
 - Remote Terraform state in an encrypted S3 bucket with state locking
 - Multiple Availability Zones for higher availability
 - A bastion host or AWS Systems Manager Session Manager for private-instance access
-- Outputs for instance addresses and VPC resource IDs
 - A CI/CD pipeline that validates and applies Terraform safely
 - Cost monitoring and budget alerts for the NAT gateway and EC2 instances

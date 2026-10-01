@@ -1,0 +1,79 @@
+pipeline {
+    agent any
+
+    parameters {
+        booleanParam(
+            name: 'PUBLISH_IMAGE',
+            defaultValue: false,
+            description: 'Push the tested image to the configured container registry.'
+        )
+    }
+
+    environment {
+        IMAGE_REPOSITORY = 'cicd-starter'
+        IMAGE_NAME = 'replace-with-your-registry-namespace/cicd-starter'
+        REGISTRY_HOST = 'replace-with-your-registry-host'
+    }
+
+    stages {
+        stage('Validate') {
+            steps {
+                sh 'python3 -m py_compile src/app.py'
+                sh 'docker compose config --quiet'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                sh 'python3 -m unittest discover -s tests -v'
+            }
+        }
+
+        stage('Version') {
+            steps {
+                script {
+                    env.IMAGE_TAG = sh(
+                        script: './scripts/version.sh',
+                        returnStdout: true
+                    ).trim()
+                }
+                echo "Building image tag: ${env.IMAGE_TAG}"
+            }
+        }
+
+        stage('Build image') {
+            steps {
+                sh './scripts/build.sh "$IMAGE_TAG"'
+            }
+        }
+
+        stage('Publish image') {
+            when {
+                allOf {
+                    branch 'main'
+                    expression { return params.PUBLISH_IMAGE }
+                }
+            }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'container-registry-credentials',
+                    usernameVariable: 'REGISTRY_USERNAME',
+                    passwordVariable: 'REGISTRY_PASSWORD'
+                )]) {
+                    sh '''
+                        echo "$REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" \\
+                            --username "$REGISTRY_USERNAME" --password-stdin
+                        ./scripts/deploy.sh "$IMAGE_TAG"
+                        docker logout "$REGISTRY_HOST"
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            sh 'docker compose down --remove-orphans || true'
+        }
+    }
+}

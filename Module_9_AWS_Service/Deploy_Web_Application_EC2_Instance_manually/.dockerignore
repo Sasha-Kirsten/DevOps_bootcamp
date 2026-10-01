@@ -1,0 +1,5 @@
+.git
+.env
+scripts/
+ReadMe.md
+*.pem
