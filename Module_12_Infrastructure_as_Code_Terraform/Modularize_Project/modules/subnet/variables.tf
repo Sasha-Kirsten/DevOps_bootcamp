@@ -1,6 +1,20 @@
-variable public_sg {}
-variable private_sg {}
-variable public_sg_ingress_port {}
-variable private_sg_ingress_port {}
-variable public_subnet1 {}
-variable private_subnet1 {}
+variable "vpc_id" {
+  type = string
+}
+
+variable "availability_zone" {
+  type = string
+}
+
+variable "public_subnet_cidr" {
+  type = string
+}
+
+variable "private_subnet_cidr" {
+  type = string
+}
+
+variable "tags" {
+  type    = map(string)
+  default = {}
+}

@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars and replace all example values before planning.
+aws_region    = "us-east-1"
+project_name  = "modular-network-lab"
+environment   = "dev"
+key_pair_name = "replace-with-an-existing-key-pair"
+
+# Replace with your current trusted public IP address.
+allowed_ssh_cidr_blocks = ["203.0.113.10/32"]
+
+# Restrict this list when the web page should not be public.
+allowed_http_cidr_blocks = ["0.0.0.0/0"]
+
+additional_tags = {
+  Owner = "your-name"
+}

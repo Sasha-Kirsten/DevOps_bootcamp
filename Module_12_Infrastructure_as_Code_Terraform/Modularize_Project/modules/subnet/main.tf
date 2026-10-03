@@ -1,31 +1,22 @@
-provider "aws" {
-    region = "us-east-1"
-    access_key = ""
-    secret_key = ""
+resource "aws_subnet" "public" {
+  vpc_id                  = var.vpc_id
+  cidr_block              = var.public_subnet_cidr
+  availability_zone       = var.availability_zone
+  map_public_ip_on_launch = true
+
+  tags = merge(var.tags, {
+    Name = "${lookup(var.tags, "Project", "project")}-public-subnet"
+    Tier = "public"
+  })
 }
 
-resource "aws_subnet" "public_subnet"{
-    cidr_block = var.public_subnet1
-    security_groups = [aws_security_group.public_sg.name]
-}
+resource "aws_subnet" "private" {
+  vpc_id            = var.vpc_id
+  cidr_block        = var.private_subnet_cidr
+  availability_zone = var.availability_zone
 
-resource "aws_subnet" "private_subnet"{
-    cidr_block = var.private_subnet1
-    security_groups = [aws_security_group.private_sg.name]
-}
-
-resource "aws_security_group" "public_sg" {
-    vpc_id = aws_vpc.vpc1.id
-    ingress {
-        from_port = var.public_sg_ingress_port
-        to_port = var.public_sg_ingress_port
-        protocol = "tcp"
-        cidr_blocks = [""]
-    }
-    egress {
-        from_port = 0
-        to_port = 0
-        protocol = "-1"
-        cidr_blocks = [""]
-    }
+  tags = merge(var.tags, {
+    Name = "${lookup(var.tags, "Project", "project")}-private-subnet"
+    Tier = "private"
+  })
 }

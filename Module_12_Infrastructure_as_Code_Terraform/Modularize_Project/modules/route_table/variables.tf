@@ -1,6 +1,24 @@
-variable vpc_id {}
-variable internet_gateway_id {}
-variable nat_gateway_id {}
-variable public_route_table_id {}
-variable private_route_table_id {}
-# variable 
+variable "vpc_id" {
+  type = string
+}
+
+variable "internet_gateway_id" {
+  type = string
+}
+
+variable "nat_gateway_id" {
+  type = string
+}
+
+variable "public_subnet_id" {
+  type = string
+}
+
+variable "private_subnet_id" {
+  type = string
+}
+
+variable "tags" {
+  type    = map(string)
+  default = {}
+}
