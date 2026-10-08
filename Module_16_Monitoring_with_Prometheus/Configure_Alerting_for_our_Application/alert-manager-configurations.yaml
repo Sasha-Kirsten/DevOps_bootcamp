@@ -1,0 +1,31 @@
+apiVersion: monitoring.coreos.com/v1beta1 
+kind: Alertmanager
+metadata:
+  name: main-rules-alert-config  
+  namespace: monitoring
+  # labels:
+  #   app: kube-prometheus-stack 
+  #   releases: monitoring
+spec:
+  route: 
+    receiver: 'email'
+    repeatInterval: 30m 
+    routes: 
+    - matchers:
+      - name: alertname
+        value: HostHighCpuLoad 
+    - matchers:
+      - name: alertname
+        value: KubernetesPodCrashLooping
+      repeatInterval: 10m 
+  receivers:
+  - name: 'email'
+    emailConfigs:
+    - to: 'example@email.com'
+      from: 'example@email.com'
+      smarthost: 'smtp.gmail.com:587'
+      authUsername:
+      authIdentity: 'example@email.com'
+      authPassword: 
+        name: gmail-auth 
+        key: password 

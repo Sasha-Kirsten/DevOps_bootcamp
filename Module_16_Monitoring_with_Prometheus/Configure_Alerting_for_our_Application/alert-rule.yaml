@@ -1,0 +1,30 @@
+apiVersion: monitoring.coreos.com/v1 
+kind: Prometheus
+metadata:
+  name: main
+  namespace: monitoring
+  labels:
+    app: kube-prometheus-stack 
+    releases: monitoring
+spec:
+  groups:
+  - name: main.rules 
+    rules:
+    - alert: HostHighCpuLoad 
+      expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 50
+      for: 2m 
+      labels:
+        severity: warning 
+        namespace: monitoring
+      annotations:
+        description: "Avaliable CPU is reaching it's limit."
+        summary: "Host CPU Load High" 
+    - alert:
+      expr:
+      for:
+      labels:
+        severity:
+        namespace:
+      annotations:
+        description:
+        summary:
