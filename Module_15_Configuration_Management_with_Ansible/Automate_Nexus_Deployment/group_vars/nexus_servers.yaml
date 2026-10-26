@@ -1,0 +1,24 @@
+---
+# Non-secret development defaults. Keep passwords and tokens in Ansible Vault or
+# a secret manager, not in group_vars committed to Git.
+nexus_version: "3.65.0-02"
+nexus_user: nexus
+nexus_group: nexus
+nexus_service_name: nexus
+nexus_base_dir: /opt
+nexus_version_dir: "{{ nexus_base_dir }}/nexus-{{ nexus_version }}"
+nexus_current_dir: "{{ nexus_base_dir }}/nexus"
+nexus_data_dir: "{{ nexus_base_dir }}/sonatype-work"
+nexus_archive_path: "/tmp/nexus-{{ nexus_version }}-unix.tar.gz"
+nexus_download_url: "https://download.sonatype.com/nexus/3/nexus-{{ nexus_version }}-unix.tar.gz"
+
+# TODO: Set this to the trusted vendor-published value, for example
+# sha256:<digest>. It is intentionally blank for this learning project.
+nexus_checksum: ""
+
+# Confirm the required Java release for the pinned Nexus version before use.
+nexus_java_package: openjdk-17-jre-headless
+nexus_port: 8081
+
+# Set to true after testing the endpoint on your development Droplet.
+nexus_healthcheck_enabled: false

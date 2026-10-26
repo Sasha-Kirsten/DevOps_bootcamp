@@ -1,16 +1,58 @@
-- name: Copy docker compose 
-  copy: 
-    src: /Users/aleksanderkirsten/Bootcamp/docker-compose.yaml
-    dest: /home/aleksanderkirsten/docker-compose.yaml 
+# - name: Copy docker compose 
+#   # PRODUCTION: The role automatically searches its files/ directory, so use a relative source
+#   # such as docker-compose.yaml—not a developer-specific macOS path. Create the destination
+#   # directory first and ensure it is owned by the configurable deployment user.
+#   copy: 
+#     src: /Users/aleksanderkirsten/Bootcamp/docker-compose.yaml
+#     dest: /home/aleksanderkirsten/docker-compose.yaml 
 
-- name: Docker login 
-  docker_login: 
-    registry_url: https://index.docker.id/v1/
-    # registry_url: "{{docker_registry}}""
-    username: aleksanderkirsten
-    #  username: "{{docker_username}}""
-    password: "{{docker_password}}"
+# - name: Docker login 
+#   # PRODUCTION: Use the declared variables consistently, authenticate over TLS, and set no_log:
+#   # true. The current registry URL has a typo; validate it against the chosen registry before use.
+#   docker_login: 
+#     registry_url: https://index.docker.id/v1/
+#     # registry_url: "{{docker_registry}}""
+#     username: aleksanderkirsten
+#     #  username: "{{docker_username}}""
+#     password: "{{docker_password}}"
 
-- name: Start container from compose 
+# - name: Start container from compose 
+#   # PRODUCTION: Pin immutable image tags/digests in the Compose file, add container healthchecks,
+#   # set restart policies and resource limits, then verify service health after the rollout.
+#   community.docker.docker_compose_v2:
+#     project_src: /home/aleksanderkirsten
+
+
+---
+- name: Create application directory
+  ansible.builtin.file:
+    path: "{{ application_directory }}"
+    state: directory
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_user }}"
+    mode: "0755"
+
+- name: Copy Docker Compose definition
+  ansible.builtin.copy:
+    src: "{{ compose_filename }}"
+    dest: "{{ application_directory }}/{{ compose_filename }}"
+    owner: "{{ deployment_user }}"
+    group: "{{ deployment_user }}"
+    mode: "0644"
+
+- name: Log in to private container registry
+  community.docker.docker_login:
+    registry_url: "{{ docker_registry_url }}"
+    username: "{{ docker_registry_username }}"
+    password: "{{ docker_registry_password }}"
+  no_log: true
+  when:
+    - docker_registry_url | length > 0
+    - docker_registry_username | length > 0
+    - docker_registry_password | length > 0
+
+- name: Start application containers
   community.docker.docker_compose_v2:
-    project_src: /home/aleksanderkirsten
+    project_src: "{{ application_directory }}"
+    state: present
+  become_user: "{{ deployment_user }}"

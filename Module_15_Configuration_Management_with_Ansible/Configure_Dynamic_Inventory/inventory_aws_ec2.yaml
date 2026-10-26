@@ -1,11 +1,24 @@
 --- 
+# PRODUCTION: Use the fully qualified plugin name (amazon.aws.aws_ec2) and pin the collection
+# version in requirements.yml so CI/CD and developer workstations resolve the same plugin.
 plugin: aws_ec2
 regions:
   - eu-central-1
 
+# PRODUCTION: Generate only intentional, stable groups (for example, keyed_groups for
+# tags.Role and tags.Environment). Grouping every tag can create surprising group names and
+# makes a playbook harder to audit.
 keyed_groups:
   - key: tags
 
 filters:
+  # PRODUCTION: A Name wildcard is too broad in a shared account. Filter by exact, mandatory
+  # Environment, Project, and Role tags as well as the running state, and scope the AWS IAM
+  # role to discovery in approved accounts/regions.
   tag:Name: dev*
-  instance-state-name: running 
+  instance-state-name: running
+
+# PRODUCTION: Define hostnames/compose values deliberately: use private_ip_address only when
+# the control node has private network access, otherwise prefer SSM rather than public SSH.
+# Enable inventory caching for larger fleets, with an appropriate cache TTL, to reduce AWS API
+# calls and make automation more predictable.

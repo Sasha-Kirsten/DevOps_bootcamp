@@ -1,0 +1,119 @@
+---
+- name: Deploy Nexus Repository
+  hosts: nexus_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Validate that this playbook runs on Debian-based hosts
+      ansible.builtin.assert:
+        that: ansible_facts.os_family == "Debian"
+        fail_msg: "This learning playbook currently supports Ubuntu/Debian hosts only."
+
+    - name: Update apt repository cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install Java runtime and required utilities
+      ansible.builtin.apt:
+        name:
+          - "{{ nexus_java_package }}"
+          - tar
+        state: present
+
+    - name: Create the Nexus group
+      ansible.builtin.group:
+        name: "{{ nexus_group }}"
+        system: true
+
+    - name: Create the non-login Nexus service account
+      ansible.builtin.user:
+        name: "{{ nexus_user }}"
+        group: "{{ nexus_group }}"
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+
+    - name: Create Nexus installation and data directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ nexus_user }}"
+        group: "{{ nexus_group }}"
+        mode: "0755"
+      loop:
+        - "{{ nexus_base_dir }}"
+        - "{{ nexus_data_dir }}"
+
+    - name: Download the pinned Nexus archive
+      ansible.builtin.get_url:
+        url: "{{ nexus_download_url }}"
+        dest: "{{ nexus_archive_path }}"
+        mode: "0644"
+        checksum: "{{ nexus_checksum if (nexus_checksum | length > 0) else omit }}"
+
+    - name: Extract the Nexus archive
+      ansible.builtin.unarchive:
+        src: "{{ nexus_archive_path }}"
+        dest: "{{ nexus_base_dir }}"
+        remote_src: true
+        owner: "{{ nexus_user }}"
+        group: "{{ nexus_group }}"
+        creates: "{{ nexus_version_dir }}"
+
+    - name: Set Nexus user in its runtime configuration
+      ansible.builtin.lineinfile:
+        path: "{{ nexus_version_dir }}/bin/nexus.rc"
+        regexp: '^#?run_as_user=.*$'
+        line: "run_as_user=\"{{ nexus_user }}\""
+      notify: Restart Nexus
+
+    - name: Point current Nexus path to the pinned version
+      ansible.builtin.file:
+        src: "{{ nexus_version_dir }}"
+        dest: "{{ nexus_current_dir }}"
+        state: link
+        force: true
+      notify: Restart Nexus
+
+    - name: Install Nexus systemd service
+      ansible.builtin.template:
+        src: nexus.service.j2
+        dest: "/etc/systemd/system/{{ nexus_service_name }}.service"
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Nexus
+
+    - name: Enable and start Nexus
+      ansible.builtin.systemd_service:
+        name: "{{ nexus_service_name }}"
+        enabled: true
+        state: started
+
+    - name: Flush handlers before optional health check
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify the Nexus status endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ nexus_port }}/service/rest/v1/status"
+        status_code: 200
+      register: nexus_healthcheck
+      retries: 20
+      delay: 5
+      until: nexus_healthcheck.status == 200
+      when: nexus_healthcheck_enabled | bool
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restart Nexus
+      ansible.builtin.systemd_service:
+        name: "{{ nexus_service_name }}"
+        state: restarted
+
+
+

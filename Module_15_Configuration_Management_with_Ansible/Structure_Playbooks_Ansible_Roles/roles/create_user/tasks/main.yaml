@@ -1,4 +1,24 @@
-- name: Create new linux user 
-  user:
-    name: aleksanderkirsten
-    groups: "{{groups}}"
+# - name: Create new linux user 
+#   # PRODUCTION: Use configurable deployment_user/deployment_groups variables, append: true
+#   # where appropriate, and ensure the desired home directory, shell, SSH access, and ownership
+#   # are explicitly managed. Avoid using a root SSH login for routine deployment automation.
+#   user:
+#     name: aleksanderkirsten
+#     groups: "{{groups}}"
+
+
+---
+- name: Create the deployment group
+  ansible.builtin.group:
+    name: "{{ deployment_user }}"
+    state: present
+
+- name: Create the deployment user
+  ansible.builtin.user:
+    name: "{{ deployment_user }}"
+    group: "{{ deployment_user }}"
+    groups: "{{ deployment_groups }}"
+    append: true
+    shell: /bin/bash
+    create_home: true
+    state: present

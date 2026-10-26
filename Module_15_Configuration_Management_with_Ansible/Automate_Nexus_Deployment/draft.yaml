@@ -1,0 +1,14 @@
+# Historical learning notes only — this is not an Ansible playbook and should
+# not be executed. The repeatable implementation is deploy-nexus.yaml.
+#
+# The original manual learning flow was:
+# - Update apt and install Java.
+# - Download/unpack a Nexus archive below /opt.
+# - Create a dedicated nexus user and grant directory ownership.
+# - Configure run_as_user="nexus".
+# - Start Nexus and inspect the running process/port.
+#
+# The main playbook now replaces these manual commands with idempotent Ansible
+# modules, a versioned archive URL, a systemd service, and optional HTTP health
+# checks. Future improvement: delete this file after documenting the learning
+# journey in the README or Git history.

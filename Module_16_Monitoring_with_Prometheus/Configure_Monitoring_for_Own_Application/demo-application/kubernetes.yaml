@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis-metrics-demo
+  namespace: default
+  labels:
+    app.kubernetes.io/name: redis-metrics-demo
+    app.kubernetes.io/part-of: monitoring-demo
+spec:
+  # TODO(availability): Run at least two replicas across failure domains and add a PodDisruptionBudget before
+  # treating this service as highly available. Ensure Redis itself is also highly available.
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-metrics-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis-metrics-demo
+        app.kubernetes.io/part-of: monitoring-demo
+    spec:
+      # TODO(security): Add a pod-level securityContext (runAsNonRoot, seccompProfile: RuntimeDefault, fsGroup only
+      # when required) and a dedicated ServiceAccount with no API permissions unless the app truly needs them.
+      containers:
+        - name: api
+          image: redis-metrics-demo:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: REDIS_URL
+              value: redis://redis-cart.default.svc.cluster.local:6379/0
+          # TODO(security): Move Redis credentials/TLS configuration to Secret-backed environment variables or mounted
+          # files. Do not embed production endpoints, passwords, or TLS material in this manifest.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          # TODO(security): Add container securityContext with allowPrivilegeEscalation: false, readOnlyRootFilesystem:
+          # true when supported, and drop all Linux capabilities.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis-metrics-demo
+  namespace: default
+  labels:
+    app.kubernetes.io/name: redis-metrics-demo
+    app.kubernetes.io/part-of: monitoring-demo
+spec:
+  # TODO(network): Add a NetworkPolicy that permits ingress only from approved in-cluster clients and Prometheus,
+  # plus egress only to DNS and Redis. NetworkPolicy enforcement depends on the installed CNI.
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: redis-metrics-demo
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis-metrics-demo
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  # TODO(observability): Add sampleLimit/targetLabels as needed and protect the metrics endpoint with network policy.
+  # Do not require application authentication on /metrics unless Prometheus is configured to supply credentials.
+  namespaceSelector:
+    matchNames:
+      - default
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis-metrics-demo
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

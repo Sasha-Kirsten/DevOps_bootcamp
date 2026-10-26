@@ -1,0 +1,123 @@
+---
+- name: Deploy a Node.js application
+  hosts: node_app_servers
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Validate that this playbook runs on Debian-based hosts
+      ansible.builtin.assert:
+        that: ansible_facts.os_family == "Debian"
+        fail_msg: "This learning playbook currently supports Ubuntu/Debian hosts only."
+
+    - name: Update apt repository cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install Node.js and npm from the operating system repository
+      ansible.builtin.apt:
+        name:
+          - nodejs
+          - npm
+        state: present
+
+    - name: Create the application group
+      ansible.builtin.group:
+        name: "{{ app_group }}"
+        system: true
+
+    - name: Create the non-login application user
+      ansible.builtin.user:
+        name: "{{ app_user }}"
+        group: "{{ app_group }}"
+        system: true
+        create_home: false
+        shell: /usr/sbin/nologin
+        comment: "Node.js application service account"
+    # TODO: Keep the Ansible SSH user separate from this service account. The
+    # service account should own the app but should not have administrative access.
+
+    - name: Create application directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        mode: "0755"
+      loop:
+        - "{{ app_base_dir }}"
+        - "{{ app_releases_dir }}"
+        - "{{ app_release_dir }}"
+
+    - name: Copy the versioned application archive
+      ansible.builtin.copy:
+        src: "{{ app_archive_source }}"
+        dest: "/tmp/{{ app_name }}-{{ app_release_version }}.tgz"
+        mode: "0644"
+
+    - name: Extract the application archive
+      ansible.builtin.unarchive:
+        src: "/tmp/{{ app_name }}-{{ app_release_version }}.tgz"
+        dest: "{{ app_release_dir }}"
+        remote_src: true
+        owner: "{{ app_user }}"
+        group: "{{ app_group }}"
+        extra_opts:
+          - --strip-components=1
+
+    - name: Install production Node.js dependencies
+      community.general.npm:
+        path: "{{ app_release_dir }}"
+        production: true
+      become_user: "{{ app_user }}"
+    # TODO: `npm ci` is preferable for production when the release contains a
+    # package-lock.json. Add it after pinning the collection in requirements.yml.
+
+    - name: Point current release to deployed version
+      ansible.builtin.file:
+        src: "{{ app_release_dir }}"
+        dest: "{{ app_current_dir }}"
+        state: link
+        force: true
+      notify: Restart Node.js application
+
+    - name: Install the Node.js systemd service
+      ansible.builtin.template:
+        src: my-node-app.service.j2
+        dest: "/etc/systemd/system/{{ app_name }}.service"
+        mode: "0644"
+      notify:
+        - Reload systemd
+        - Restart Node.js application
+
+    - name: Enable and start the Node.js service
+      ansible.builtin.systemd_service:
+        name: "{{ app_name }}"
+        enabled: true
+        state: started
+
+    - name: Flush handlers before optional health check
+      ansible.builtin.meta: flush_handlers
+
+    - name: Verify the application health endpoint
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app_port }}{{ app_healthcheck_path }}"
+        status_code: 200
+      register: app_healthcheck
+      retries: 10
+      delay: 3
+      until: app_healthcheck.status == 200
+      when: app_healthcheck_enabled | bool
+    # TODO: Set app_healthcheck_enabled to true only after the application has a
+    # real endpoint, such as /healthz, that returns HTTP 200 when it is ready.
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Restart Node.js application
+      ansible.builtin.systemd_service:
+        name: "{{ app_name }}"
+        state: restarted

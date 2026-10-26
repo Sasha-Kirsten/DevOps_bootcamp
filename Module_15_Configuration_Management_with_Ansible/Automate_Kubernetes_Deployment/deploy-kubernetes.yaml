@@ -1,0 +1,21 @@
+- hosts: localhost
+  connection: local
+  gather_facts: false
+  collections: [kubernetes.core]
+  # TODO(correctness): The three values below are currently strings, but Ansible requires lists of task mappings.
+  # Minimal executable shape:
+  # tasks:
+  #   - name: Create an isolated development namespace
+  #     kubernetes.core.k8s:
+  #       state: present
+  #       definition:
+  #         apiVersion: v1
+  #         kind: Namespace
+  #         metadata: { name: myapp-dev }
+
+  # Add a Deployment, Service, and kubernetes.core.k8s_info / kubernetes.core.k8s wait task only after choosing a
+  # reviewed immutable image digest. Do not deploy an arbitrary image to the currently connected cluster.
+  pre_tasks: verify cluster identity, namespace, image digest, policy checks, and required Secrets.
+  tasks: apply Namespace, ResourceQuota, LimitRange, ServiceAccount, Deployment, Service, Ingress, and NetworkPolicy.
+  post_tasks: wait for rollout, check readiness, run smoke tests, capture deployed image digest, and roll back on
+              failure through a controlled deployment strategy.

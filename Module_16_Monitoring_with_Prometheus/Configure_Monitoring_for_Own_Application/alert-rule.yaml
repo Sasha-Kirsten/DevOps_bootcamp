@@ -1,0 +1,45 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redis-application-alerts
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  # TODO(alerting): Add application SLO alerts for elevated 5xx ratio, sustained p95 latency, unavailable readiness,
+  # and scrape-target absence. Link each alert to a runbook URL in annotations.
+  groups:
+  - name: redis.application.rules
+    rules:
+    - alert: RedisDown
+      expr: redis_up == 0
+      for: 1m
+      labels:
+        severity: critical
+        service: redis-cart
+      annotations:
+        summary: Redis exporter cannot reach Redis
+        description: "Redis has been unavailable for more than one minute on {{ $labels.instance }}."
+        # TODO(runbook): Add a runbook URL with Redis connectivity, DNS, authentication, and recovery checks.
+    - alert: RedisClusterSlotFail
+      # TODO(scope): Remove this alert when redis-cart is a standalone Redis instance; the metric applies to Redis
+      # Cluster mode and can otherwise produce an absent/irrelevant series.
+      expr: redis_cluster_slots_fail > 0
+      for: 5m
+      labels:
+        severity: warning
+        service: redis-cart
+      annotations:
+        summary: Redis Cluster has failed hash slots
+        description: "One or more Redis Cluster hash slots are marked FAIL on {{ $labels.instance }}."
+    - alert: RedisOutOfSystemMemory
+      # TODO(capacity): Prefer memory max/used metrics that match the Redis deployment model and tune the threshold
+      # from observed baseline usage, eviction rate, and available node capacity.
+      expr: redis_memory_used_bytes / redis_total_system_memory_bytes * 100 > 90 and redis_total_system_memory_bytes > 0
+      for: 2m
+      labels:
+        severity: warning
+        service: redis-cart
+      annotations:
+        summary: Redis is approaching system-memory capacity
+        description: "Redis uses more than 90% of available system memory on {{ $labels.instance }}."

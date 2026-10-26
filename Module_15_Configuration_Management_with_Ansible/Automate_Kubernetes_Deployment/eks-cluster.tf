@@ -1,27 +1,20 @@
 resource "aws_eks_cluster" "example" {
+  name     = var.cluster_name
+  version  = var.kubernetes_version
+  role_arn = aws_iam_role.cluster.arn
 
-    name = var.cluster_name
-    kubernetes_version = var.kubernetes_version
+  vpc_config {
+    subnet_ids              = values(aws_subnet.private)[*].id
+    endpoint_private_access = true
+    endpoint_public_access  = false
+  }
 
-    subnet_ids = [var.subnet_id]
-    vpc_id = var.vpc_id
+  enabled_cluster_log_types = ["api", "audit", "authenticator"]
 
-    endpoint_public_access = true
-    enable_cluster_creator_admin_permissions = true
+  depends_on = [
+    aws_cloudwatch_log_group.eks_cluster,
+    aws_iam_role_policy_attachment.amazon_eks_cluster_policy,
+  ]
 
-    eks_managed_node_groups = {
-        example = {
-            ami_type = "AL2_x86_64" # Example AMI type  
-            instance_type = "t3.medium" # Example instance type
-            min_size = 1
-            max_size = 3
-            desired_size = 2
-        }
-    }
-
-    tags = {
-        Name = var.cluster_name
-        environment = var.environment
-        application = var.application
-    }
+  tags = merge(local.common_tags, { Name = var.cluster_name })
 }

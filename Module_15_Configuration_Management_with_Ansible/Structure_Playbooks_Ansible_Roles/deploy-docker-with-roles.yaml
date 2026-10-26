@@ -1,63 +1,58 @@
 ---
-- name: Install Docker 
-  hosts: all 
-  become: yes 
-  tasks:
-    - name: Install Docker 
-      yum:
-        name: docker
-        update_cache: yes 
-        state: present 
-    - name: Start docker daemon 
-      systemd: 
-        name: docker 
-        state: started 
-  
-- name: Create new linux user 
-  hosts: all 
-  become: yes 
+- name: Prepare Docker application hosts
+  hosts: application_hosts
+  become: true
+  gather_facts: true
+
   vars:
-    user_groups: adm, docker 
-  roles:
-    - create_user
-  # systemd:
-  #   name: docker 
-  #   state: started 
-  #   tasks:
-  #     - name: Create new linux user 
-  #       user: 
-  #         name: aleksanderkirsten
-  #         groups: adm, docker 
+    deployment_user: deployer
+    deployment_groups:
+      - docker
 
-- name: Install Docker-compose 
-  hosts: all 
-  become: yes 
-  become_user: aleksanderkirsten
-  tasks: 
-    - name: Create docker-compose directory 
-      file:
-        path: ~/.docker/cli-plugins
+    # Pin a release and verify its checksum before using outside a disposable lab.
+    docker_compose_version: "2.32.4"
+    docker_compose_checksum: ""
+
+  pre_tasks:
+    - name: Assert that the host uses a supported Red Hat family distribution
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.os_family == "RedHat"
+        fail_msg: >-
+          This learning project currently installs Docker with yum/dnf and
+          supports Red Hat-family hosts only.
+
+    - name: Install Docker
+      ansible.builtin.dnf:
+        name: docker
+        state: present
+        update_cache: true
+
+    - name: Start and enable Docker
+      ansible.builtin.systemd_service:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Create Docker Compose plugin directory
+      ansible.builtin.file:
+        path: "/home/{{ deployment_user }}/.docker/cli-plugins"
         state: directory
-    - name: Get architecture of remote machine 
-      shell: uname -m
-      register: remote_arch 
-    - name: Install docker-compose 
-      get_url:
-        url: 
-        dest: ~/.docker/cli-plugins/docker-compose 
-        mode: +x
+        owner: "{{ deployment_user }}"
+        group: "{{ deployment_user }}"
+        mode: "0755"
 
-- name: Start docker containers
-  hosts: all 
-  become: yes 
-  become_user: aleksanderkirsten
-  vars_file:
-    - project-vars 
-  tasks: 
-    - name: Copy docker compose 
-      copy: 
-        src:
-        dest:
-    - name: Docker login 
-      docker_login:
-        username: aleksanderkirsten 
+    - name: Install Docker Compose plugin
+      ansible.builtin.get_url:
+        url: >-
+          https://github.com/docker/compose/releases/download/v{{ docker_compose_version }}/
+          docker-compose-linux-{{ ansible_facts.architecture }}
+        dest: "/home/{{ deployment_user }}/.docker/cli-plugins/docker-compose"
+        owner: "{{ deployment_user }}"
+        group: "{{ deployment_user }}"
+        mode: "0755"
+        checksum: "{{ docker_compose_checksum if docker_compose_checksum | length > 0 else omit }}"
+
+  roles:
+    - role: create_user
+    - role: start_containers

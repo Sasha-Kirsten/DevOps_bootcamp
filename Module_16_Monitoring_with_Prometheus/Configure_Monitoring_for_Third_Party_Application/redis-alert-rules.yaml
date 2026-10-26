@@ -1,0 +1,40 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: third-party-redis-alerts
+  namespace: monitoring
+  labels:
+    # Matches the live Prometheus ruleSelector in this cluster.
+    release: monitoring
+spec:
+  groups:
+    - name: third-party.redis.rules
+      rules:
+        - alert: ThirdPartyRedisDown
+          expr: redis_up == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: third-party-redis
+          annotations:
+            summary: Third-party Redis is unavailable
+            description: "The Redis exporter has been unable to reach {{ $labels.instance }} for more than two minutes."
+        - alert: ThirdPartyRedisHighMemoryUsage
+          expr: redis_memory_used_bytes / redis_total_system_memory_bytes * 100 > 85 and redis_total_system_memory_bytes > 0
+          for: 10m
+          labels:
+            severity: warning
+            service: third-party-redis
+          annotations:
+            summary: Third-party Redis memory usage is high
+            description: "Redis memory usage has exceeded 85% on {{ $labels.instance }} for ten minutes."
+        # Enable only if the managed service runs Redis Cluster and exposes this metric.
+        # - alert: ThirdPartyRedisClusterSlotFail
+        #   expr: redis_cluster_slots_fail > 0
+        #   for: 5m
+        #   labels:
+        #     severity: warning
+        #     service: third-party-redis
+        #   annotations:
+        #     summary: Third-party Redis Cluster has failed hash slots
+        #     description: "One or more Redis Cluster hash slots are marked FAIL on {{ $labels.instance }}."

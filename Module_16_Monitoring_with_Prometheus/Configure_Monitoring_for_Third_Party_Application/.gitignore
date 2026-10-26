@@ -1,0 +1,5 @@
+# Never commit third-party connection details or credentials.
+redis-exporter-values.local.yaml
+redis-auth-secret.yaml
+*.pem
+*.key

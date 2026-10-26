@@ -1,3 +1,20 @@
-docker_registry: https://index.docker.io/v1/
-docker_username: aleksanderkirsten
-docker_password: xxxxxx
+# # SECURITY: `vars/` has high precedence and is not suitable for real credentials. Keep only
+# # non-secret defaults here; provide docker_password through Ansible Vault or an external secret
+# # manager, mark authentication tasks no_log: true, and never commit real passwords or tokens.
+# # PRODUCTION: Make registry host, username, image tags, and application directories configurable
+# # per environment through group_vars or encrypted CI/CD variables.
+# docker_registry: https://index.docker.io/v1/
+# docker_username: aleksanderkirsten
+# docker_password: xxxxxx
+
+
+---
+application_name: example-web
+application_directory: "/opt/{{ application_name }}"
+compose_filename: docker-compose.yaml
+
+# Keep empty for public images. Provide private-registry values through
+# Ansible Vault or CI/CD secret variables, never plain-text Git files.
+docker_registry_url: ""
+docker_registry_username: ""
+docker_registry_password: ""

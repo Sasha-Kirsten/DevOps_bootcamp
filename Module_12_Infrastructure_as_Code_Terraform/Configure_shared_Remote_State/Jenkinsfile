@@ -1,66 +1,78 @@
 pipeline {
     agent any
 
+    parameters {
+        string(name: 'STATE_BUCKET', defaultValue: '', description: 'Existing S3 state bucket name created by bootstrap/.')
+        string(name: 'STATE_KEY', defaultValue: 'environments/development/terraform.tfstate', description: 'Object key for this environment state.')
+        booleanParam(name: 'RUN_PLAN', defaultValue: false, description: 'Run an AWS-authenticated Terraform plan.')
+        booleanParam(name: 'RUN_APPLY', defaultValue: false, description: 'Require approval and apply the reviewed plan. Creates or changes AWS resources.')
+    }
+
     environment {
-        AWS_DEFAULT_REGION = "eu-central-1"
-        TF_DIR = "Module_12_Infrastructure_as_Code_Terraform/Configure_shared_Remote_State"
+        AWS_DEFAULT_REGION = 'eu-central-1'
+        TF_DIR = 'Module_12_Infrastructure_as_Code_Terraform/Configure_shared_Remote_State'
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Terraform Init') {
+        stage('Format and Validate') {
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                dir("${TF_DIR}") {
+                    sh 'terraform fmt -check -recursive'
+                    sh 'terraform init -backend=false -input=false'
+                    sh 'terraform validate -no-color'
+                }
+            }
+        }
+
+        stage('Terraform Plan') {
+            when {
+                expression { return params.RUN_PLAN || params.RUN_APPLY }
+            }
+            steps {
+                script {
+                    if (!params.STATE_BUCKET.trim()) {
+                        error('STATE_BUCKET is required when running a plan or apply.')
+                    }
+                }
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-terraform-deployer']]) {
                     dir("${TF_DIR}") {
                         sh '''
-                            terraform init \
-                                -backend-config="bucket=terraform-remote-state-bucket" \
-                                -backend-config="key=terraform.tfstate" \
-                                -backend-config="region=${AWS_DEFAULT_REGION}"
+                            terraform init -input=false -reconfigure \
+                              -backend-config="bucket=${STATE_BUCKET}" \
+                              -backend-config="key=${STATE_KEY}" \
+                              -backend-config="region=${AWS_DEFAULT_REGION}" \
+                              -backend-config="encrypt=true" \
+                              -backend-config="use_lockfile=true"
+                            terraform plan -input=false -out=tfplan
                         '''
                     }
                 }
             }
         }
 
-        stage('Terraform Plan') {
-            steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
-                    dir("${TF_DIR}") {
-                        sh 'terraform plan -out=tfplan'
-                    }
-                }
-            }
-        }
-
         stage('Approval') {
+            when {
+                expression { return params.RUN_APPLY }
+            }
             steps {
-                input message: 'Review the plan above. Approve to apply and upload state to S3?', ok: 'Apply'
+                input message: 'Review the generated Terraform plan. Apply approved changes?', ok: 'Apply'
             }
         }
 
         stage('Terraform Apply') {
+            when {
+                expression { return params.RUN_APPLY }
+            }
             steps {
-                withCredentials([
-                    string(credentialsId: 'aws-access-key-id',     variable: 'AWS_ACCESS_KEY_ID'),
-                    string(credentialsId: 'aws-secret-access-key', variable: 'AWS_SECRET_ACCESS_KEY')
-                ]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-terraform-deployer']]) {
                     dir("${TF_DIR}") {
-                        // Applying the plan will create/update resources AND push
-                        // the updated terraform.tfstate to the S3 backend automatically
-                        sh 'terraform apply -auto-approve tfplan'
+                        sh 'terraform apply -input=false tfplan'
                     }
                 }
             }
@@ -68,13 +80,8 @@ pipeline {
     }
 
     post {
-        success {
-            echo 'Terraform applied successfully. State file has been uploaded to s3://terraform-remote-state-bucket/terraform.tfstate'
-        }
-        failure {
-            echo 'Pipeline failed. No changes were applied and no state was pushed to S3.'
-        }
         always {
+            archiveArtifacts artifacts: "${TF_DIR}/tfplan", allowEmptyArchive: true
             cleanWs()
         }
     }

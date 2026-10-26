@@ -1,31 +1,6 @@
 services:
-  jenkins:
-    image: jenkins/jenkins:lts
-    container_name: jenkins
+  app:
+    image: ${APP_IMAGE:?Set APP_IMAGE to the immutable image tag published by CI.}
     ports:
-      - "8080:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-    networks:
-      - ci_network
+      - "${APPLICATION_PORT:-8080}:8080"
     restart: unless-stopped
-
-  myapp:
-    image: myapp:latest
-    build:
-      context: ./myapp
-      dockerfile: Dockerfile
-    container_name: myapp
-    ports:
-      - "8081:80"
-    networks:
-      - ci_network
-    restart: unless-stopped
-
-networks:
-  ci_network:
-    driver: bridge
-
-volumes:
-  jenkins_home:

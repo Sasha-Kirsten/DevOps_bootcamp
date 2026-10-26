@@ -1,0 +1,21 @@
+[Unit]
+Description=Sonatype Nexus Repository
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=forking
+User={{ nexus_user }}
+Group={{ nexus_group }}
+LimitNOFILE=65536
+ExecStart={{ nexus_current_dir }}/bin/nexus start
+ExecStop={{ nexus_current_dir }}/bin/nexus stop
+Restart=on-failure
+RestartSec=10
+TimeoutStartSec=300
+
+# TODO: Set JVM heap options only after measuring memory use. Keep production
+# configuration outside this repository and document changes in the runbook.
+
+[Install]
+WantedBy=multi-user.target

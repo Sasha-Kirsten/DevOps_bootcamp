@@ -1,0 +1,5 @@
+[nexus_servers]
+nexus-01 ansible_host=203.0.113.10 ansible_user=automation
+
+[nexus_servers:vars]
+ansible_become=true

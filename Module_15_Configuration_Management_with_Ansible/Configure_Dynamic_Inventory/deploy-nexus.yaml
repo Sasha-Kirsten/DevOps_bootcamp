@@ -1,7 +1,13 @@
 ---
+# PRODUCTION: Target explicit tag-derived groups such as role_nexus and environment_dev rather
+# than this static group. Keep production, staging, and development deployments separate, and
+# use serial rollouts plus health checks to limit blast radius.
 - name: Install java and net-tools 
   hosts: nexus_server
+  # PRODUCTION: Set become: true and a non-root remote user. Do not log in as root over SSH.
   tasks:
+    # PRODUCTION: Package names and managers vary by OS. Split Debian and RHEL work into roles
+    # or use ansible_facts to select supported packages; do not assume apt on every discovered host.
     - name: Update apt repo and cache 
       apt: update_cache=yes force_apt_get=yes cache_valid_time=3600 
     - name: Install Java 8
@@ -18,13 +24,19 @@
       register: stat_result 
     - name: Download Nexus 
       get_url:
+        # PRODUCTION: Pin a supported Nexus version, HTTPS URL, and a vendor-published checksum.
+        # Store artifact repository credentials in Ansible Vault or an external secret manager.
         url: 
         dest: 
 
 - name: Install Docker 
+  # PRODUCTION: aws_ec2 is the inventory plugin name, not a generated host group. Target an
+  # explicit tag-derived group such as role_docker after tightening inventory filters.
   hosts: aws_ec2 
   become: yes 
   tasks: 
+    # PRODUCTION: Use a maintained role/package source, pin compatible versions, and verify the
+    # repository signing key. Test this role against each supported OS release in CI.
     - name: Install Docker 
       yum:
         name: docker 
@@ -34,8 +46,13 @@
       systemd: 
         name: docker 
         state: started 
+      # PRODUCTION: Also enable the service so it survives a reboot, then validate the daemon
+      # with an idempotent smoke test. Use handlers for restarts caused by configuration changes.
 
 # - name: Create new linux user 
+    #   PRODUCTION: Manage least-privilege users/SSH keys with a role; never add passwords or private
+    #   keys to this repository. Run ansible-lint, --syntax-check, --check, and a test environment
+    #   before CI/CD promotes the playbook to production.
 #   hosts: aws_ec2 
 #   become: yes 
 #   tasks:

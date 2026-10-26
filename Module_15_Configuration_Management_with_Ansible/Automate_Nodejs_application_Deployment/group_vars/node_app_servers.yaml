@@ -1,0 +1,23 @@
+---
+# These non-secret defaults make the playbook reusable for a development host.
+# TODO: Move environment-specific settings into separate development/production
+# inventory directories as the project grows.
+app_name: my-node-app
+app_user: nodeapp
+app_group: nodeapp
+app_base_dir: "/opt/{{ app_name }}"
+app_releases_dir: "{{ app_base_dir }}/releases"
+app_release_version: "1.0.0"
+app_release_dir: "{{ app_releases_dir }}/{{ app_release_version }}"
+app_current_dir: "{{ app_base_dir }}/current"
+
+# Add your .tgz application archive under files/ before running the playbook.
+# This path is relative to the playbook directory, not to one developer's laptop.
+app_archive_source: "files/{{ app_name }}-{{ app_release_version }}.tgz"
+app_entrypoint: server.js
+app_port: 3000
+
+# Start with false because the learning archive may not expose /healthz yet.
+# TODO: Enable this and set the correct path when the application is ready.
+app_healthcheck_enabled: false
+app_healthcheck_path: /healthz

@@ -19,7 +19,21 @@ AWS EC2 managed nodes
 Docker installed and deployment user created
 ```
 
-> **Learning project:** The files in this directory are starter examples. Review the **Before Running the Pipeline** checklist before using them with a real Jenkins server or AWS account.
+> **Current project status:** This project is a presentation-ready development baseline. It includes a validation-first Jenkins Pipeline, explicit EC2 discovery filters, a one-host-at-a-time Docker configuration playbook, and pinned Ansible collection requirements. It has not been run against a real Jenkins control node or EC2 target from this repository.
+
+## How to Present This to Recruiters
+
+Describe the project in outcome-focused terms:
+
+> “I created a Jenkins-driven Ansible workflow that discovers only explicitly tagged development EC2 instances, validates the automation before making changes, and uses a separate Ansible control node to install and enable Docker plus a dedicated deployment user. The pipeline requires an explicit approval parameter before it can modify a host.”
+
+Demonstrate these three pieces in a portfolio walkthrough:
+
+1. **Safety:** show `inventory_aws_ec2.yaml`. Its `Project`, `Environment`, `Role`, and `AnsibleManaged` filters prevent an accidental account-wide rollout.
+2. **Repeatability:** show `requirements.yml`, `ansible.cfg`, and the `deploy-docker-new-user.yaml` playbook. Explain that package installation, service enablement, and user creation are idempotent.
+3. **Delivery controls:** show `Jenkinsfile`. `APPLY_CHANGES` defaults to `false`, so normal builds perform syntax and inventory validation only; an operator must explicitly opt in before a change is applied.
+
+For screenshots or a short demo video, capture a successful Jenkins validation build, the dynamic inventory graph showing only a disposable development host, and the final `docker --version` / `id linux_user` verification on that host. Redact IP addresses, AWS account IDs, key paths, credentials, and Jenkins secrets.
 
 ## Roles in the Architecture
 
@@ -35,17 +49,29 @@ Docker installed and deployment user created
 
 | File | Purpose |
 | --- | --- |
-| `jenkinsfile` | Jenkins Pipeline definition that copies files to the control node and runs remote Ansible commands. Jenkins conventionally expects `Jenkinsfile`. |
-| `ansible.cfg` | Sets Ansible defaults including the inventory path, remote user, SSH key path, and AWS dynamic inventory plugin. |
-| `inventroy_aws_ec2.yaml` | AWS EC2 dynamic inventory source. The filename contains a typo and should be renamed for consistency. |
-| `deploy-docker-new-user.yaml` | Playbook that installs Docker, starts Docker, and creates `linux_user`. |
+| `Jenkinsfile` | Validation-first Pipeline. It copies project files to the control node, displays the discovered EC2 graph, and applies only when `APPLY_CHANGES=true`. |
+| `ansible.cfg` | Enables the AWS EC2 inventory plugin, points to the standard inventory filename, and keeps SSH host-key checking enabled. |
+| `inventory_aws_ec2.yaml` | AWS EC2 dynamic inventory source, filtered to explicitly opted-in development Docker hosts. |
+| `deploy-docker-new-user.yaml` | Idempotently installs/enables Docker, creates the deployment user, and verifies Docker. |
+| `group_vars/all.yaml` | Non-secret default for the deployment username. |
+| `requirements.yml` | Pins the required `amazon.aws` Ansible collection. |
+| `.gitignore` | Excludes private keys, local inventory overrides, and local host-key files. |
 | `Readme.md` | Explains the setup and safe execution of this learning project. |
 
 ## What the Current Ansible Files Do
 
 ### Dynamic inventory
 
-`inventroy_aws_ec2.yaml` uses the `aws_ec2` inventory plugin to discover instances in `eu-central-1`. It creates groups based on EC2 tags and instance types. For example, instances with an `Environment=dev` tag can be selected through a generated tag-based group after the inventory configuration is refined.
+`inventory_aws_ec2.yaml` uses the `amazon.aws.aws_ec2` inventory plugin to discover only running EC2 instances in `eu-central-1` that carry all of these tags:
+
+```text
+Project = jenkins-ansible-demo
+Environment = development
+Role = docker-host
+AnsibleManaged = true
+```
+
+The `Role` tag creates the `role_docker_host` Ansible group that the playbook targets. This makes the target selection understandable and auditable in a recruiter demo.
 
 The AWS inventory plugin runs from the **Ansible Control Node**, so that host needs AWS authentication and the Python dependencies required by the plugin.
 
@@ -53,20 +79,22 @@ The AWS inventory plugin runs from the **Ansible Control Node**, so that host ne
 
 `ansible.cfg` sets these defaults:
 
-- `inventory = inventory_aws_ec2.yml`
+- `inventory = inventory_aws_ec2.yaml`
 - `remote_user = ec2-user`
-- `private_key_file = ~/.ssh/id_rsa`
-- `enable_plugins = aws_ec2`
+- `enable_plugins = amazon.aws.aws_ec2`
+- `host_key_checking = True`
 
-Host-key checking is currently disabled. This is convenient for a short-lived lab but is not recommended for a production environment because it removes SSH server identity verification.
+The managed-node private key is intentionally **not** stored in `ansible.cfg`; Jenkins supplies it only when an approved apply job runs.
 
 ### Playbook
 
-`deploy-docker-new-user.yaml` targets all discovered hosts and performs these actions with elevated privileges:
+`deploy-docker-new-user.yaml` targets only `role_docker_host` and performs these actions with elevated privileges:
 
-1. Installs Docker with the Ansible `yum` module.
-2. Starts the Docker daemon with the `systemd` module.
-3. Creates the `linux_user` account and adds it to the `adm` and `docker` groups.
+1. Confirms the host is Red Hat-family Linux.
+2. Installs Docker through the OS package manager.
+3. Enables and starts Docker so it survives a reboot.
+4. Creates `linux_user` and adds it only to the privileged Docker group.
+5. Verifies the Docker binary is available.
 
 Because the playbook uses `yum`, the managed EC2 instances must use Amazon Linux, RHEL, or a compatible operating system. Ubuntu systems require the Ansible `apt` module and Ubuntu package names instead.
 
@@ -84,6 +112,32 @@ Prepare the following components before creating the Jenkins job:
 - A clear tagging convention to select only the intended EC2 managed nodes.
 
 Use IAM roles and short-lived credentials where possible. Do not commit private SSH keys, AWS access keys, or passwords to Git.
+
+## Required AWS Tags for a Safe Demo
+
+Use one disposable Amazon Linux development instance. Add all four tags before discovering it:
+
+| Key | Required value | Why it matters |
+| --- | --- | --- |
+| `Project` | `jenkins-ansible-demo` | Limits discovery to this project. |
+| `Environment` | `development` | Prevents a development workflow reaching staging/production. |
+| `Role` | `docker-host` | Produces the `role_docker_host` group targeted by the playbook. |
+| `AnsibleManaged` | `true` | Explicit opt-in before configuration automation can reach the host. |
+
+Never demonstrate this project with `hosts: all` or a discovery configuration that has no filters.
+
+## Local Validation Commands
+
+Run these checks from this directory before committing or configuring Jenkins:
+
+```bash
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook --syntax-check -i 'localhost,' -c local deploy-docker-new-user.yaml
+ansible-playbook --list-tasks -i 'localhost,' -c local deploy-docker-new-user.yaml
+ansible-inventory --graph
+```
+
+The inventory command may legitimately return an empty `aws_ec2` group when no instances have all required tags. That is a safe outcome. Do not loosen the filters merely to make the graph non-empty.
 
 ## Setup Steps
 
@@ -163,22 +217,13 @@ id linux_user
 
 ## Before Running the Pipeline
 
-Complete these corrections in the current draft files before executing the automation:
-
-- [ ] Rename `jenkinsfile` to `Jenkinsfile`, or configure Jenkins to use the lowercase filename.
-- [ ] Rename `inventroy_aws_ec2.yaml` to `inventory_aws_ec2.yaml`, then update every reference to use the same `.yaml` filename.
-- [ ] Update `ansible.cfg`, which currently references `inventory_aws_ec2.yml`; this file does not exist.
-- [ ] Copy the individual Ansible files or the correct project directory. The Jenkins pipeline currently copies `ansible/*`, but no `ansible/` directory exists in this project.
-- [ ] Create the target directory on the control node before copying files, and run remote Ansible commands from that directory.
-- [ ] Fix the remote commands. They currently run `ansible-playbook -i inventory_aws_ec2.yml` without a playbook filename and then reference `playbook.yml`, which does not exist.
-- [ ] Run `ansible-inventory -i inventory_aws_ec2.yaml --graph` before the playbook to verify target selection.
-- [ ] Define `ANSIBLE_SERVER_PUBLIC_IP` securely as a Jenkins environment variable, parameter, or trusted configuration value.
-- [ ] Remove `StrictHostKeyChecking=no` and use managed host keys for non-lab environments.
-- [ ] Avoid copying a managed-node private key to `/root/.ssh/` when possible. Use an encrypted secret store, a short-lived key, or AWS Systems Manager Session Manager instead.
-- [ ] Align the `remote.user` and `remote.identityFile` values with the control-node credential. The pipeline sets them inconsistently before replacing them with `ec2-server-key` values.
-- [ ] Add `enabled: true` to the Docker systemd task so Docker starts after a managed node reboots.
-- [ ] Confirm that the `adm` group is necessary for `linux_user`; grant only the permissions required.
-- [ ] Add inventory filters and limit the playbook to a dedicated target group rather than `hosts: all`.
+1. Add `ANSIBLE_SERVER_PUBLIC_IP` as a protected Jenkins environment variable or a build parameter. It must identify only the Ansible control node.
+2. Create Jenkins SSH private-key credentials named `ansible-server-key` (Jenkins → control node) and `ec2-server-key` (control node → managed nodes). Use the credential IDs in `Jenkinsfile`, or change the Pipeline to match your names.
+3. Give the control node an IAM role that can list the required EC2 instances. Keep the role read-only for inventory discovery.
+4. Add the required tags to exactly one disposable Amazon Linux host, then run `ansible-inventory --graph` **on the control node** and confirm that it appears only in `role_docker_host`.
+5. Create a Jenkins Pipeline job using `Jenkinsfile`. Run it with `APPLY_CHANGES=false` first; the validation and inventory stages should succeed without modifying a host.
+6. Review the build log and dynamic inventory output. Only then run a second build with `APPLY_CHANGES=true` to configure the disposable host.
+7. Confirm the managed node results: `docker --version`, `systemctl is-enabled docker`, `systemctl is-active docker`, and `id linux_user`.
 
 ## Security and Operations Checklist
 

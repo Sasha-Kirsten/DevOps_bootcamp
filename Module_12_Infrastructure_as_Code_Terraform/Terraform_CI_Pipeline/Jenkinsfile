@@ -1,6 +1,10 @@
 pipeline {
 	agent any
 
+	environment {
+		PROJECT_DIRECTORY = 'Module_12_Infrastructure_as_Code_Terraform/Terraform_CI_Pipeline'
+	}
+
 	options {
 		timestamps()
 		disableConcurrentBuilds()
@@ -23,19 +27,25 @@ pipeline {
 
 		stage('Terraform format') {
 			steps {
-				sh 'terraform fmt -check -recursive'
+				dir(env.PROJECT_DIRECTORY) {
+					sh 'terraform fmt -check -recursive'
+				}
 			}
 		}
 
 		stage('Terraform initialize') {
 			steps {
-				sh 'terraform init -backend=false -input=false'
+				dir(env.PROJECT_DIRECTORY) {
+					sh 'terraform init -backend=false -input=false'
+				}
 			}
 		}
 
 		stage('Terraform validate') {
 			steps {
-				sh 'terraform validate -no-color'
+				dir(env.PROJECT_DIRECTORY) {
+					sh 'terraform validate -no-color'
+				}
 			}
 		}
 
@@ -44,15 +54,17 @@ pipeline {
 				expression { return params.RUN_PLAN }
 			}
 			steps {
-				sh 'terraform plan -input=false -no-color -out=tfplan'
-				sh 'terraform show -no-color tfplan > tfplan.txt'
+				dir(env.PROJECT_DIRECTORY) {
+					sh 'terraform plan -input=false -no-color -out=tfplan'
+					sh 'terraform show -no-color tfplan > tfplan.txt'
+				}
 			}
 		}
 	}
 
 	post {
 		always {
-			archiveArtifacts artifacts: 'tfplan.txt', allowEmptyArchive: true
+			archiveArtifacts artifacts: "${env.PROJECT_DIRECTORY}/tfplan.txt", allowEmptyArchive: true
 		}
 		cleanup {
 			deleteDir()

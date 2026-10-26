@@ -1,0 +1,7 @@
+# Local secrets and environment-specific inventory must not be committed.
+*.pem
+*.key
+known_hosts
+inventory.local.yaml
+group_vars/all.local.yaml
+.ansible/

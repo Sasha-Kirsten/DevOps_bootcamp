@@ -277,3 +277,21 @@ Expand this guide with project-specific examples for:
 3. Configure a secure remote backend before collaborating with others.
 4. Add CI checks for formatting and validation.
 5. Create a protected deployment pipeline for staging and production.
+
+
+
+
+Run the safe Jenkins validation build
+In Jenkins:
+
+Select New Item → create a Pipeline job.
+Name it terraform-ci-api-validation.
+Under Pipeline, select Pipeline script from SCM.
+Set:
+SCM: Git
+Repository URL: https://github.com/Sasha-Kirsten/DevOps_bootcamp.git
+Branch: main
+Script Path: Module_12_Infrastructure_as_Code_Terraform/Terraform_CI_Pipeline/Jenkinsfile
+Save the job.
+Choose Build with Parameters.
+Leave RUN_PLAN unchecked and start the build.

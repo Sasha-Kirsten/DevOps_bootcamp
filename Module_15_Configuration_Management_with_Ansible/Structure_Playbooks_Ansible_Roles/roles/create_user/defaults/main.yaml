@@ -1,1 +1,14 @@
-groups: admin, docker 
+# # PRODUCTION: Keep low-precedence, safe-to-override values in defaults. Rename this to
+# # deployment_groups and add a configurable deployment_user rather than hard-coding an account
+# # in the task. Confirm every group is valid for each supported Linux distribution.
+# # SECURITY: Docker-group membership is effectively privileged host access; grant it sparingly.
+# groups: admin, docker 
+
+
+---
+deployment_user: deployer
+
+# Docker group membership effectively gives root-equivalent host access.
+# Grant it only to trusted users and automation accounts.
+deployment_groups:
+  - docker

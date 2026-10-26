@@ -1,0 +1,20 @@
+[Unit]
+Description={{ app_name }} Node.js application
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User={{ app_user }}
+Group={{ app_group }}
+WorkingDirectory={{ app_current_dir }}
+ExecStart=/usr/bin/node {{ app_current_dir }}/{{ app_entrypoint }}
+Restart=on-failure
+RestartSec=5
+Environment=NODE_ENV=production
+
+# TODO: Add EnvironmentFile=/etc/{{ app_name }}/app.env after you have a secure
+# secret-delivery method. Do not place real credentials in this template.
+
+[Install]
+WantedBy=multi-user.target

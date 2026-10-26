@@ -1,0 +1,22 @@
+# PRODUCTION: Add a reviewed Compose definition here rather than copying one from a controller
+# workstation. Pin images by version or digest, avoid plaintext secrets, add healthchecks,
+# resource limits, restart policies, and a .env file supplied securely at deployment time.
+
+
+services:
+  web:
+    image: nginx:1.27.4-alpine
+    container_name: example-web
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

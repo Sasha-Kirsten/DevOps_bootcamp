@@ -1,0 +1,15 @@
+# Values for prometheus-community/prometheus-redis-exporter.
+# The exporter is installed as its own workload by Helm and connects to Redis over the cluster network.
+# It is not a Grafana or Prometheus sidecar.
+# TODO(production): Pin and record the Helm chart version, use a reviewed image digest where chart support allows it,
+# and configure TLS plus Secret-based Redis authentication before monitoring a protected Redis instance.
+serviceMonitor:
+  enabled: true
+  labels:
+    release: monitoring
+
+# The discovered Redis Service is redis-cart in the default namespace.
+# Use the fully qualified Service name because this exporter may be installed in another namespace.
+redisAddress: redis://redis-cart.default.svc.cluster.local:6379
+# TODO(resilience): Use a Redis deployment with persistence, replication/sentinel or managed Redis failover for
+# production. The exporter can observe Redis but does not make a single-instance Redis deployment highly available.

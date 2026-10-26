@@ -221,3 +221,22 @@ Complete these corrections and decisions before using the current files:
 
 
 ## Resources
+
+
+
+
+Verification completed
+ terraform fmt
+ terraform validate
+ Editor diagnostics check
+ No cloud resources created
+ No terraform plan or terraform apply run
+
+Before you run a reviewed plan, make sure:
+
+Your AWS CLI/profile is authenticated to the intended AWS account.
+us-west-2 is the region you want.
+bootcamp-eks is a safe non-production cluster name.
+The default CIDRs do not overlap your existing network.
+You understand the NAT Gateway and EKS charges.
+You use remote encrypted state with locking before team/shared usage.

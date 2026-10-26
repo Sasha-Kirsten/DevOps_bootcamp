@@ -1,0 +1,12 @@
+# TODO(playbook): Add an idempotent production configuration playbook. Keep it separate from Terraform execution in
+# CI/CD wherever possible, and execute it first in a disposable environment or check-mode workflow.
+#
+# Suggested production play structure:
+# - hosts: application_servers              # Use a named inventory group, not an unrestricted `all` group.
+#   become: true
+#   gather_facts: true
+#   serial: 1                               # Roll hosts gradually to reduce blast radius.
+#   pre_tasks: validate host identity, wait for SSH/SSM readiness, and verify required variables.
+#   roles: baseline_security, application, monitoring
+#   post_tasks: verify health endpoint, service state, logs, and deployed version; fail fast on unhealthy results.
+

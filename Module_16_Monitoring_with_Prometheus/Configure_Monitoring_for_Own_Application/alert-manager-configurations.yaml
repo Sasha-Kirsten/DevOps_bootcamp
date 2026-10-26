@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: redis-application-email
+  namespace: monitoring
+spec:
+  # TODO(routing): Route critical alerts to an on-call channel and warnings to a lower-noise channel. Add environment,
+  # team, and service matchers as the project grows to prevent cross-environment notification noise.
+  route:
+    receiver: 'email'
+    groupBy: [alertname, service]
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+    - matchers:
+      - name: alertname
+        value: RedisDown
+      repeatInterval: 30m
+  receivers:
+  - name: 'email'
+    # TODO(security): Use an App Password or provider SMTP credential stored in a Secret manager; do not place SMTP
+    # credentials in Git, Helm values, shell history, or CI logs. Test delivery and failure handling regularly.
+    emailConfigs:
+    - to: 'replace-with-alert-recipient@example.com'
+      from: 'replace-with-sender@example.com'
+      smarthost: 'smtp.gmail.com:587'
+      authUsername: 'replace-with-sender@example.com'
+      authIdentity: 'replace-with-sender@example.com'
+      authPassword:
+        name: gmail-auth 
+        key: password

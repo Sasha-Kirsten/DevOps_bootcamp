@@ -1,0 +1,26 @@
+# Values for prometheus-community/prometheus-redis-exporter.
+# Replace the hostname and port with the private endpoint provided by your managed Redis vendor.
+# The exporter runs in Kubernetes; the Redis endpoint must be reachable from its namespace/network.
+redisAddress: redis://replace-with-third-party-redis-hostname:6379
+
+# Enable only when the third-party Redis endpoint uses TLS.
+redisTlsConfig:
+  enabled: false
+  insecureSkipVerify: false
+
+# Enable password authentication when the vendor requires it.
+# Create the Secret outside Git and replace the name/key below.
+auth:
+  enabled: false
+  secret:
+    name: third-party-redis-auth
+    key: password
+
+serviceMonitor:
+  enabled: true
+  apiVersion: monitoring.coreos.com/v1
+  labels:
+    # Matches the live Prometheus serviceMonitorSelector in this cluster.
+    release: monitoring
+  interval: 30s
+  scrapeTimeout: 10s

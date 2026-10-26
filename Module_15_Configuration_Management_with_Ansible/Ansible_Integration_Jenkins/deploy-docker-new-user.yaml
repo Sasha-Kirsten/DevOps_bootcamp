@@ -1,29 +1,36 @@
 ---
-- name: Install Docker 
-  hosts: all
-  become: yes 
-  tasks:
-    - name: Install Docker 
-      yum: 
-        name: docker 
-        update_cache: yes 
-        state: present 
-    - name: Start docker daemon 
-      systemd:
-        name: docker 
-        state: started 
-- name: Create new linux user 
-  hosts: all 
-  become: yes 
-  tasks:
-    - name: Create new linux user 
-      user:
-        name: linux_user 
-        groups: adm, docker 
+- name: Configure tagged Docker hosts
+  hosts: role_docker_host
+  become: true
+  gather_facts: true
+  serial: 1
 
-# - name: Install Docker_compose 
-#   hosts: all
-#   become: yes 
-#   become_user: linux_user 
-#   tasks: 
-  
+  tasks:
+    - name: Confirm that the target is Red Hat-family Linux
+      ansible.builtin.assert:
+        that: ansible_facts.os_family == "RedHat"
+        fail_msg: "This playbook supports Amazon Linux, RHEL, and compatible systems only."
+
+    - name: Install Docker
+      ansible.builtin.package:
+        name: docker
+        state: present 
+
+    - name: Enable and start Docker
+      ansible.builtin.systemd_service:
+        name: docker 
+        enabled: true
+        state: started
+
+    - name: Create the deployment user
+      ansible.builtin.user:
+        name: "{{ deployment_user }}"
+        groups: docker
+        append: true
+        shell: /bin/bash
+        create_home: true
+        state: present
+
+    - name: Verify that Docker is available
+      ansible.builtin.command: docker --version
+      changed_when: false

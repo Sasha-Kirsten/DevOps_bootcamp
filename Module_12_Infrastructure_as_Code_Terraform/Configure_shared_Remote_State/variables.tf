@@ -1,6 +1,6 @@
-variable "aws_region" {}
+variable "aws_region" {
+  description = "AWS Region used by the workload configuration that consumes remote state."
+  type        = string
+  default     = "eu-central-1"
+}
 variable "vpc_cidr_block" {}
-variable "subnet1_cidr_block" {}
-variable "ami_id" {}
-variable "instance_type" {}
-    

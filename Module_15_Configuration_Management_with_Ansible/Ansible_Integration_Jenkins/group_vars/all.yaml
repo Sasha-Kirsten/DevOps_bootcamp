@@ -1,0 +1,4 @@
+---
+# Non-secret defaults. Override per environment through an ignored inventory
+# variable file, Ansible Vault, or CI/CD variables.
+deployment_user: linux_user

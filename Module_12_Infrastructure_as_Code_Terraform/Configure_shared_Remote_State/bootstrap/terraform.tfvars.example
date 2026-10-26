@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars and set a globally unique name before applying.
+state_bucket_name = "replace-with-globally-unique-terraform-state-bucket"
+aws_region        = "eu-central-1"
+
+tags = {
+  Environment = "development"
+  Owner       = "your-name"
+}

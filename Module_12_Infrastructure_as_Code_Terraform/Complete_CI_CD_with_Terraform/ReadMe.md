@@ -1,8 +1,22 @@
 # Complete CI/CD with Terraform
 
-## Overview
+## Demo project
 
-This project demonstrates a continuous integration and continuous deployment (CI/CD) workflow for a Java application. Jenkins builds the Maven artifact, creates a Docker image, publishes it to a container registry, provisions an EC2 host with Terraform, and deploys the image to that host.
+**Demo Project:** Complete CI/CD with Terraform  
+**Technologies Used:** Jenkins, Maven, Docker, Docker Compose, Terraform, AWS EC2, Linux, Git  
+**Project Description:** Build and publish an immutable Java container image, provision its EC2 host with Terraform, and deploy the reviewed image through a gated Jenkins pipeline.
+
+This is a recruiter-ready **CI/CD infrastructure template**. The project provides a valid Terraform EC2 stack, container deployment configuration, host bootstrap script, and Jenkins declarative pipeline. It is intentionally safe by default: formatting and Terraform validation run automatically, while Maven builds, image pushes, AWS plans, Terraform applies, and SSH deployments require explicit Jenkins parameters.
+
+> **Verification scope:** The Terraform and deployment artifacts can be tested locally without AWS. The repository does not include a Java application or `pom.xml`, so a Maven build and Docker image build require an application repository or subdirectory supplied through the `APPLICATION_DIRECTORY` Jenkins parameter.
+
+## Deployment flow
+
+```text
+Git commit → Jenkins validation → Maven tests → immutable Docker image → registry
+														   ↓
+									  reviewed Terraform plan → approval → EC2 deployment
+```
 
 The project combines these tools:
 
@@ -16,7 +30,7 @@ The project combines these tools:
 | Terraform | Creates and maintains AWS infrastructure. |
 | AWS EC2 | Runs the deployed application. |
 
-> **Learning project:** The repository currently contains draft configuration files. Use the **Before Running the Pipeline** checklist before connecting this project to AWS or Jenkins.
+> **Learning project:** The source is validated locally. Connect it to AWS and Jenkins only after completing the environment-specific cloud-deployment checklist below.
 
 ## Target Deployment Flow
 
@@ -42,13 +56,15 @@ The pipeline should publish an immutable image tag, such as a Git commit SHA or 
 
 | File | Intended purpose |
 | --- | --- |
-| `jenkinsfile` | Defines the Jenkins pipeline stages. Jenkins conventionally expects this to be named `Jenkinsfile`. |
-| `main.tf` | Intended Terraform infrastructure resources for the EC2 deployment. |
-| `provider.tf` | Pins the Terraform and AWS provider versions. It still needs an AWS provider configuration. |
-| `variable.tf` | Intended Terraform input-variable definitions. It must be updated to match the variables referenced by `main.tf`. |
+| `jenkinsfile` | Valid declarative Jenkins pipeline. Configure the job with this script path, or rename it to `Jenkinsfile` before use. |
+| `main.tf` | VPC, public subnet, internet route, security group, and EC2 application host. |
+| `provider.tf` | Terraform/AWS provider requirements and standard tags. |
+| `variable.tf` | Typed input variables for the AWS environment and secure ingress. |
+| `outputs.tf` | EC2 public IP and application URL for the deployment stage. |
 | `Dockerfile` | Packages a built Java JAR using Eclipse Temurin 17. |
-| `docker-compose.yaml` | Defines Jenkins and application containers. Separate CI and target-host Compose files are recommended. |
-| `server-cmds.sh` | Bootstrap and deployment commands intended to run on the EC2 host. |
+| `docker-compose.yaml` | Target-host Compose file that runs the exact immutable image selected by CI. |
+| `server-cmds.sh` | Amazon Linux 2023 Docker bootstrap run through EC2 user data. |
+| `terraform.tfvars.example` | Non-secret Terraform input template. |
 
 ## Prerequisites
 
@@ -109,15 +125,13 @@ Add at least these entries to `.gitignore`:
 
 ### 4. Configure Jenkins credentials
 
-Create credentials in Jenkins and refer to them by credential ID. The draft pipeline refers to the following IDs:
+Create credentials in Jenkins and refer to them by credential ID. The pipeline uses the following IDs:
 
 | Credential ID | Recommended type | Purpose |
 | --- | --- | --- |
-| `docker_username` | Secret text or username/password | Authenticates Docker image publication. |
-| `docker_password` | Secret text or username/password | Authenticates Docker image publication. |
-| `jenkins_aws_access_key_id` | Secret text | Legacy AWS authentication method; prefer an IAM role or workload identity. |
-| `jenkins_aws_secret_access_key` | Secret text | Legacy AWS authentication method; prefer an IAM role or workload identity. |
-| `jenkins_ssh_key` | SSH username with private key | Connects to the EC2 deployment host. |
+| `container-registry-credentials` | Username with password | Authenticates Docker image publication without exposing the password in arguments. |
+| `aws-terraform-deployer` | AWS Credentials | Performs the opt-in Terraform plan and apply stages. Prefer a least-privilege assumed role. |
+| `jenkins-ec2-deployer` | SSH username with private key | Connects to the EC2 deployment host after approval. |
 
 Use a dedicated AWS IAM role for the pipeline with only the permissions needed to manage the intended Terraform resources and read/write the remote state. Never print credentials in build logs.
 
@@ -167,25 +181,19 @@ The target host should:
 
 Avoid disabling SSH host-key verification (`StrictHostKeyChecking=no`) in a production pipeline. Use a managed `known_hosts` file or a controlled initial host-key verification process instead.
 
-## Before Running the Pipeline
+## Before running a cloud deployment
 
-The current files are educational drafts. Complete the following work before attempting a real deployment:
+Static checks are suitable for every pull request. A real plan/apply/deployment requires an AWS development account, a valid Amazon Linux 2023 AMI for the selected Region, an existing key pair (or an SSM-based alternative), a registry repository, and a Java application directory containing `pom.xml` and the `target/` JAR expected by the Dockerfile.
 
-- [ ] Rename `jenkinsfile` to `Jenkinsfile`, or explicitly configure Jenkins to use the lowercase name.
-- [ ] Correct the Jenkins declarative syntax: use a `stages { ... }` block and `steps { ... }` blocks.
-- [ ] Define shared image-name and image-tag variables. The current pipeline builds `myapp:1.0`, while the Compose file uses `myapp:latest`.
-- [ ] Tag the image with the registry namespace, for example `<registry-user>/<repository>:<immutable-tag>`, before pushing it.
-- [ ] Replace `docker login -p` with a credentials-safe login method that does not expose the password in process listings or logs.
-- [ ] Preserve the Terraform output in a pipeline variable. The current deployment stage resets the EC2 IP address to an empty value.
-- [ ] Add a declared `output "ec2_public_ip"` to Terraform before calling `terraform output ec2_public_ip`.
-- [ ] Replace the fixed 90-second wait with an actual readiness check, such as cloud-init completion, SSH availability, and a health endpoint.
-- [ ] Add the AWS provider configuration, remote state backend, security group, EIP/NAT and route resources, and other missing dependencies required by `main.tf`.
-- [ ] Replace `aws_ec2_instance` with the valid AWS provider resource type `aws_instance`; also remove unsupported VPC attributes such as `name`.
-- [ ] Make `variable.tf` declare the variables used by `main.tf` (`vpc_name`, CIDR blocks, Availability Zone, AMI, instance type, and key name) instead of unrelated EKS variables.
-- [ ] Ensure `server-cmds.sh` pulls and starts the published versioned image. It currently starts a local `myapp:latest` image and does not use the passed image argument.
-- [ ] Align the Docker application port. The Java image exposes `8080`, but the Compose file maps the application to container port `80`.
-- [ ] Separate the Jenkins controller Compose configuration from the Compose file copied to the EC2 application host.
-- [ ] Add resource tags, log collection, a health check, and a tested rollback procedure.
+Before enabling the opt-in Jenkins parameters, complete the environment-specific tasks below:
+
+- [ ] Configure the Jenkins job script path for `jenkinsfile`, or rename the file to `Jenkinsfile` in the repository before creating the job.
+- [ ] Create Jenkins credentials: `container-registry-credentials`, `aws-terraform-deployer`, and `jenkins-ec2-deployer`.
+- [ ] Configure a remote Terraform backend before multiple users or jobs manage the same environment.
+- [ ] Replace the example AMI, key pair name, and trusted SSH CIDR in `terraform.tfvars`.
+- [ ] Restrict the application ingress CIDR or put the service behind an HTTPS load balancer for production.
+- [ ] Verify the actual application health endpoint after `docker compose up -d`; the generic template cannot infer it.
+- [ ] Record an image digest and test a rollback by redeploying a previous immutable image tag.
 
 ## Recommended Pipeline Stages
 
@@ -215,7 +223,7 @@ The current files are educational drafts. Complete the following work before att
 
 ## Getting Started
 
-1. Correct the draft configuration using the **Before Running the Pipeline** checklist.
+1. Copy `terraform.tfvars.example` to `terraform.tfvars` and set approved development-account values.
 2. Configure Jenkins agents, credentials, and repository access.
 3. Test the Maven build and Docker image locally or on a dedicated CI agent.
 4. Validate Terraform and review a plan in a non-production AWS environment.

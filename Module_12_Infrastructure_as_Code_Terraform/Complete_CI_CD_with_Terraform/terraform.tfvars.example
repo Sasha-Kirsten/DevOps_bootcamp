@@ -1,0 +1,12 @@
+# Copy to terraform.tfvars and set values for a disposable development account.
+aws_region            = "eu-central-1"
+environment           = "development"
+vpc_name              = "cicd-demo"
+availability_zone     = "eu-central-1a"
+vpc_cidr              = "10.40.0.0/16"
+public_subnet_cidr    = "10.40.1.0/24"
+ami_id                = "ami-replace-with-amazon-linux-2023-ami"
+instance_type         = "t3.micro"
+key_name              = "replace-with-existing-key-pair"
+ssh_ingress_cidr      = "203.0.113.10/32"
+application_port      = 8080

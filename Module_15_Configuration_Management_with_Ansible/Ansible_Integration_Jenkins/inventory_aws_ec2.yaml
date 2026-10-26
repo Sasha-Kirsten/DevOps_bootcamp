@@ -1,0 +1,20 @@
+---
+# Only explicitly opted-in, running development instances are discovered.
+# Update these values in a local ignored copy or CI/CD configuration for another
+# environment; do not remove filters and then target `all`.
+plugin: amazon.aws.aws_ec2
+regions:
+  - eu-central-1
+
+filters:
+  instance-state-name: running
+  tag:Project: jenkins-ansible-demo
+  tag:Environment: development
+  tag:Role: docker-host
+  tag:AnsibleManaged: "true"
+
+keyed_groups:
+  - key: ec2_tags.Role
+    prefix: role
+  - key: ec2_tags.Environment
+    prefix: environment

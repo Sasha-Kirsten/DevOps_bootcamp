@@ -30,12 +30,12 @@ CloudWatch Logs
 | `variables.tf` | Reusable inputs for naming, region, API stage, Lambda capacity, throttling, and tags. |
 | `lambda_function.py` | Lambda handler packaged into a ZIP by the archive provider. |
 | `outputs.tf` | Lambda function name and API invocation URL. |
-| `jenkinsfile` | Declarative Jenkins pipeline. Configure this lower-case path explicitly in Jenkins, or rename it to `Jenkinsfile` if using the default pipeline script path. |
+| `Jenkinsfile` | Declarative Jenkins pipeline that runs format, initialization, validation, and an optional reviewed plan. |
 | `terraform.tfvars.example` | Safe non-secret local configuration template. |
 
 ## Pipeline Overview
 
-The `jenkinsfile` performs these stages:
+The `Jenkinsfile` performs these stages:
 
 1. **Checkout** — obtains the Terraform source.
 2. **Terraform format** — runs `terraform fmt -check -recursive`.
@@ -46,20 +46,6 @@ The `jenkinsfile` performs these stages:
 The optional plan is stored as `tfplan.txt` in the Jenkins build artifacts. The pipeline never runs `terraform apply` or `terraform destroy`.
 
 The pipeline helps ensure Terraform configurations are correctly formatted, validated, and safe to review before infrastructure changes are applied.
-
-## Pipeline Overview
-
-The CI pipeline runs on pull requests and pushes to the main branch.
-
-Typical stages include:
-
-1. **Checkout source code**
-2. **Set up Terraform**
-3. **Initialize Terraform**
-4. **Check Terraform formatting**
-5. **Validate Terraform configuration**
-6. **Run Terraform plan**
-7. **Publish plan output for review** (optional)
 
 ## Prerequisites
 
@@ -79,7 +65,7 @@ terraform version
 
 ```text
 Terraform_CI_Pipeline/
-├── jenkinsfile
+├── Jenkinsfile
 ├── main.tf
 ├── serverless.tf
 ├── variables.tf
@@ -136,15 +122,39 @@ Terraform will display the infrastructure changes it would make without applying
 
 ## Configure Jenkins
 
-Create a **Pipeline** or **Multibranch Pipeline** job that points to this repository. The Jenkins agent requires Terraform $\ge 1.5$, Git, and network access to the Terraform Registry. For the current lower-case filename, set the pipeline **Script Path** to:
-
-```text
-jenkinsfile
-```
+Create a **Pipeline** or **Multibranch Pipeline** job that points to this repository. The Jenkins agent requires Terraform $\ge 1.5$, Git, and network access to the Terraform Registry. Use the default Pipeline script path, `Jenkinsfile`.
 
 Use the default `RUN_PLAN=false` setting for pull requests and routine CI builds. This runs fully offline from AWS account changes: it installs providers, packages the local Lambda function, and validates the configuration.
 
 Enable `RUN_PLAN` only for an approved build with AWS credentials supplied by Jenkins Credentials, an instance profile, or an assumed role. The identity needs read access sufficient for Terraform to refresh the resources it plans. Do not place AWS keys in source files or in `terraform.tfvars`.
+
+### Run the validation build in Jenkins
+
+This is the first build to run and it does **not** call AWS:
+
+1. In Jenkins, select **New Item** and create a **Pipeline** job, for example `terraform-ci-api-validation`.
+2. In **Pipeline**, select **Pipeline script from SCM**, choose Git, and set the repository URL to `https://github.com/Sasha-Kirsten/DevOps_bootcamp.git`.
+3. Select branch `main` and keep the script path as `Jenkinsfile`.
+4. Configure the job's working directory to `Module_12_Infrastructure_as_Code_Terraform/Terraform_CI_Pipeline` if the Jenkins SCM configuration or job plugin supports it. Otherwise, use a Multibranch Pipeline job whose repository root is this project directory.
+5. Confirm that the selected Jenkins agent provides `git` and Terraform $\ge 1.5$.
+6. Select **Build with Parameters**, leave `RUN_PLAN` unchecked, and run the build.
+
+The expected green stages are **Checkout**, **Terraform format**, **Terraform initialize**, and **Terraform validate**. Save a screenshot of the stage view and a redacted console-log excerpt for the portfolio evidence.
+
+> **Important:** A Pipeline job checking out the repository root cannot find this project's `Jenkinsfile` automatically because it is stored in a subdirectory. Either configure Jenkins to use the exact script path `Module_12_Infrastructure_as_Code_Terraform/Terraform_CI_Pipeline/Jenkinsfile`, or create a separate repository for this portfolio project. In both cases, ensure shell steps execute from `Module_12_Infrastructure_as_Code_Terraform/Terraform_CI_Pipeline`.
+
+### Enable a reviewed plan safely
+
+Use a disposable AWS development account or a clearly isolated development environment. Do not use personal long-lived access keys in Jenkins.
+
+1. Create an IAM role for the Jenkins **agent**, such as `terraform-ci-plan-reviewer`, and attach the example policy in [`jenkins/terraform-plan-reviewer-policy.json`](jenkins/terraform-plan-reviewer-policy.json).
+2. Use a short-lived workload identity to provide that role to the Jenkins agent: an EC2 instance profile, EKS IRSA, or another approved federated role. If a separate Jenkins-agent role assumes `terraform-ci-plan-reviewer`, allow only `sts:AssumeRole` to that specific target role.
+3. Start with the exact template policy. If AWS denies an additional read API during planning, add only that documented read action; do not replace the policy with administrative access.
+4. Confirm that the Jenkins agent is using the intended AWS account and Region before selecting `RUN_PLAN=true`. The configured default Region is defined in `terraform.tfvars.example`.
+5. Select **Build with Parameters**, check `RUN_PLAN`, and run the build. Jenkins creates `tfplan` and archives the readable `tfplan.txt` artifact; it does not apply it.
+6. Review the plan before sharing it. Redact account IDs, API URLs, ARNs, resource IDs, internal hostnames, and any values marked sensitive. Keep the redacted text file or screenshot as portfolio evidence.
+
+The plan-role policy intentionally allows only the read calls used by this Lambda/API Gateway configuration and `sts:GetCallerIdentity`. It contains no Terraform apply permissions such as `lambda:CreateFunction`, `apigateway:POST`, `iam:CreateRole`, or `logs:CreateLogGroup`.
 
 ## Secrets and Sensitive Values
 
@@ -241,3 +251,23 @@ For production-oriented projects, consider adding the following improvements:
 A successful Jenkins build confirms that Terraform was formatted correctly, initialized with the required providers, and validated. If `RUN_PLAN` was selected and AWS credentials were available, the build also archives a readable plan for review.
 
 A successful plan never applies infrastructure changes. Keep `terraform apply` outside this validation job and run it only through an approved deployment workflow.
+
+## Presentation Evidence Checklist
+
+Use these artifacts to explain the project without exposing account IDs, URLs, plan details, or credentials:
+
+1. Show the architecture diagram and explain the Lambda-to-API-Gateway request path.
+2. Show `Jenkinsfile` and point out that `RUN_PLAN` defaults to `false` and the pipeline contains no `terraform apply` command.
+3. Capture a successful Jenkins validation build with the format, initialize, and validate stages. If you demonstrate a plan, redact sensitive/account-specific data from `tfplan.txt`.
+4. Show `serverless.tf` to discuss reproducible Lambda packaging, CloudWatch logging permissions, API Gateway integration permission, tagging, and throttling.
+5. Demonstrate the Lambda handler locally with a sample API Gateway event and its HTTP `200` JSON response.
+
+Current local verification for this revision:
+
+- `terraform fmt -check -recursive` passed.
+- `terraform init -backend=false -input=false` passed using the provider lock selections.
+- `terraform validate -no-color` passed.
+- `python -m py_compile lambda_function.py` passed.
+- A local `lambda_handler` invocation returned HTTP `200`, JSON content, and the supplied request path.
+
+No Terraform plan, apply, destroy, or AWS resource changes were run during these checks.
