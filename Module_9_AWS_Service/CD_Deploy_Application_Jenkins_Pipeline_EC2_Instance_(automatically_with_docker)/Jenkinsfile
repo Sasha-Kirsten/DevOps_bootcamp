@@ -1,77 +1,109 @@
-#!/usr/bin/env groovy
-library identifier: 'jenkins-shared-library@main', retriever: modernSCM(
-    [$class: 'GitSCMSource',
-    remote: '',
-    credentialsId: 'github-credentials'
-    ]
-)
+pipeline {
+    agent any
 
-
-
-
-pipeline{
-    agent any 
-    tools{
-        maven 'Maven'
+    options {
+        timestamps()
+        disableConcurrentBuilds()
     }
-    environment{
-        patch_version = "1.0.${env.BUILD_NUMBER}"
+
+    parameters {
+        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Registry repository, for example docker.io/your-user/myapp.')
+        string(name: 'EC2_HOST', defaultValue: '', description: 'Target in user@host form, for example ubuntu@ec2-203-0-113-10.compute-1.amazonaws.com.')
+        booleanParam(name: 'PUBLISH_IMAGE', defaultValue: false, description: 'Push the tested immutable image to the container registry.')
+        booleanParam(name: 'DEPLOY_TO_EC2', defaultValue: false, description: 'Require approval and deploy the newly published image to EC2.')
     }
-    stages{
-        stage('Init') {
+
+    environment {
+        APPLICATION_DIRECTORY = 'myapp'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build and Test') {
+            steps {
+                dir(env.APPLICATION_DIRECTORY) {
+                    sh 'mvn --batch-mode clean verify'
+                }
+            }
+        }
+
+        stage('Build Image') {
             steps {
                 script {
-                    echo "Loading the .groovy script"
-                    // Load the script in a stage, not in the environment block
-                    // gv = load 'Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/CI_step.groovy'
-                    sh "echo ${patch_version}"
-                    sh "sudo apt-get update" 
-                    sh "sudo apt-get install -y docker.io"
-                    sh "sudo apt-get install -y docker-compose"
-                    sh "sudo systemctl start docker"
-                    sh "sudo systemctl enable docker" 
+                    env.IMAGE_TAG = "1.0.${env.BUILD_NUMBER}"
+                    env.LOCAL_IMAGE = "myapp:${env.IMAGE_TAG}"
+                }
+                sh 'docker build --tag "$LOCAL_IMAGE" .'
+            }
+        }
+
+        stage('Publish Image') {
+            when {
+                expression { return params.PUBLISH_IMAGE || params.DEPLOY_TO_EC2 }
+            }
+            steps {
+                script {
+                    if (!params.IMAGE_REPOSITORY.trim()) {
+                        error('IMAGE_REPOSITORY is required when publishing or deploying.')
+                    }
+                    env.PUBLISHED_IMAGE = "${params.IMAGE_REPOSITORY}:${env.IMAGE_TAG}"
+                }
+                withCredentials([usernamePassword(credentialsId: 'container-registry-credentials', usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')]) {
+                    sh '''
+                        registry_host="${IMAGE_REPOSITORY%%/*}"
+                        printf '%s' "$REGISTRY_PASSWORD" | docker login "$registry_host" --username "$REGISTRY_USERNAME" --password-stdin
+                        docker image tag "$LOCAL_IMAGE" "$PUBLISHED_IMAGE"
+                        docker image push "$PUBLISHED_IMAGE"
+                        docker logout "$registry_host"
+                    '''
                 }
             }
         }
 
-        stage('Build') {
-            steps{
-                script{
-                    echo "Building Docker Image"
-                    def dockerBuildCmd = "docker build -t aleksanderk534/simple-maven-app2:${patch_version} ."
-                    sh "${dockerBuildCmd}"
-                }
+        stage('Approval') {
+            when {
+                expression { return params.DEPLOY_TO_EC2 }
             }
-        }
-
-        stage('Push') {
-            steps{
-                script{
-                    echo "Pushing Docker Image to Docker Hub"
-                    def dockerLoginCmd = "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD}"
-                    def dockerPushCmd = "docker push aleksanderk534/simple-maven-app2:${patch_version}"
-                    sh "${dockerLoginCmd}"
-                    sh "${dockerPushCmd}"
-                }
-            }
-        }
-
-
-
-        stage('Deploy') {
-            steps{
-                script{
-                    echo "Deploying Docker Image to EC2 Instance"
-                    withCredentials([
-                        string(credentialsId: 'ec2-instance-ip', variable: 'EC2_IP')
-                    ]) {
-                        def dockerCmd = "docker run -p 3080:3080 -d aleksanderk534/simple-maven-app2:${patch_version}"
-                        sshagent(['aws_access_key_id']) {
-                            sh "ssh -o StrictHostKeyChecking=no ec2-user@${EC2_IP} '${dockerCmd}'"
-                        }
+            steps {
+                script {
+                    if (!params.EC2_HOST.trim()) {
+                        error('EC2_HOST is required when deploying.')
                     }
                 }
+                input message: 'Review the published immutable image. Deploy it to EC2?', ok: 'Deploy'
             }
+        }
+
+        stage('Deploy to EC2') {
+            when {
+                expression { return params.DEPLOY_TO_EC2 }
+            }
+            steps {
+                sshagent(credentials: ['ec2-ssh-key']) {
+                    sh '''
+                        mkdir -p "$HOME/.ssh"
+                        ec2_host_name="${EC2_HOST#*@}"
+                        ssh-keyscan -H "$ec2_host_name" >> "$HOME/.ssh/known_hosts"
+                        ssh "$EC2_HOST" "
+                          docker pull '$PUBLISHED_IMAGE' &&
+                                                    (docker rm --force myapp 2>/dev/null || true) &&
+                          docker run --detach --restart unless-stopped --name myapp --publish 8090:8080 '$PUBLISHED_IMAGE'
+                          curl --fail --silent --show-error http://localhost:8090/health
+                        "
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'myapp/target/*.jar', allowEmptyArchive: true
         }
     }
 }

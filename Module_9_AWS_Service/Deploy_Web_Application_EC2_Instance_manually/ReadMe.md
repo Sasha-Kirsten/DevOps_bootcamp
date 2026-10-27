@@ -1,6 +1,12 @@
 
 # Deploy a Web Application to an EC2 Instance Manually
 
+## Demo project
+
+**Demo Project:** Deploy a Web Application to an EC2 Instance Manually  
+**Technologies Used:** AWS EC2, Docker, Docker Compose, NGINX, Linux, Git  
+**Project Description:** Package a static web application in a non-root NGINX container and manually deploy an immutable image version to Amazon EC2.
+
 ## Overview
 
 This starter project demonstrates a manual deployment workflow for a small web application on Amazon EC2. The application is a static site served by an unprivileged NGINX container. Replace the example page with your own application as you progress through the exercise.
@@ -11,6 +17,12 @@ The workflow is intentionally manual:
 2. Push the immutable image to a registry.
 3. Connect to EC2 and pull that exact image.
 4. Run it with Docker Compose and verify its health endpoint.
+
+## Verification status
+
+The project has been statically verified with Bash syntax checks and Docker Compose configuration rendering. The deployment script also rejects placeholder registry paths before an image pull is attempted.
+
+The local container runtime test requires a running Docker daemon. If Docker Desktop is stopped, start it and rerun the local test in [Test the Application Locally](#4-test-the-application-locally). No EC2 resources are created by local validation.
 
 ## Project Files
 

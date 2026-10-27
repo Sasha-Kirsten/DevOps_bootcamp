@@ -1,45 +1,20 @@
-def Increment_Version(String currentVersion){
-    def versionParts = currentVersion.tokenize('.')
-    def majorVersion = versionParts[0].toInteger()
-    def minorVersion = versionParts[1].toInteger()
-    def patchVersion = versionParts[2].toInteger() 
-    
-    // Fixed Groovy syntax: '&&' instead of 'and', 'else if' instead of 'elif'
-    if(patchVersion == 9 && minorVersion == 9){
-        patchVersion += 1
-    } else if(patchVersion == 9 && minorVersion > 9){
-        patchVersion = 0
-        minorVersion = minorVersion + 1
-        versionParts[1] = minorVersion.toString()
-    } else {
-        patchVersion += 1
+def createBuildVersion(String baseVersion, String buildNumber) {
+    if (!(baseVersion ==~ /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/)) {
+        throw new IllegalArgumentException("BASE_VERSION must use MAJOR.MINOR.PATCH format; received: ${baseVersion}")
+    }
+    if (!(buildNumber ==~ /^\d+$/)) {
+        throw new IllegalArgumentException("BUILD_NUMBER must be numeric; received: ${buildNumber}")
     }
 
-    return "${majorVersion}.${minorVersion}.${patchVersion}"
+    return "${baseVersion}-ci.${buildNumber}"
 }
 
-def Maven_clean_and_build(String mavenApplication){
-    sh "mvn clean package -f ${mavenApplication}/pom.xml"
-    sh "mvn clean install -f ${mavenApplication}/pom.xml"
+def mavenVerify(String projectDirectory) {
+    sh "mvn --batch-mode clean verify -f '${projectDirectory}/pom.xml'"
 }
 
-def Build_Docker_Image(String dockerImageName, String dockerTag){
-    sh "docker build -t ${dockerImageName}:${dockerTag} ."
+def buildDockerImage(String imageName, String imageTag) {
+    sh "docker build --build-arg APP_VERSION='${imageTag}' --tag '${imageName}:${imageTag}' ."
 }
 
-def Push_Docker_Image(String dockerImageName, String dockerTag, String dockerUsername, String dockerPassword){
-    sh "echo ${dockerPassword} | docker login -u ${dockerUsername} --password-stdin"
-    sh "docker push ${dockerImageName}:${dockerTag}"
-}
-
-def Commit_Version_Update(String gitUsername, String gitEmail, String gitBranch, String gitCommitMessage){
-    sh "git config user.name ${gitUsername}"
-    sh "git config user.email ${gitEmail}"
-    sh "git add ."
-    // sh "git commit -m '${gitCommitMessage}'"
-    // sh "git push origin ${gitBranch}"
-    sh "git commit -m 'Increment version ${patch_version}' || true"
-
-}
-
-return this 
+return this

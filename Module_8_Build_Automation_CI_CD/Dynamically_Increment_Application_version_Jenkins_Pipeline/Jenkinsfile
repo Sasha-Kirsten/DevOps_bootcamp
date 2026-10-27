@@ -1,85 +1,87 @@
-#!/usr/bin/env groovy
-// @Library('jenkins-shared-library@master')
-def gv 
-// gv = load 'CI_steps.groovy'
-pipeline{
+pipeline {
     agent any
-    environment{
-        PATH = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${env.PATH}"
-        patch_version = "1.0.0"
-        maven_version = "3.6.3"
-        DOCKER_TAG = "1.0.0"
-        // Dockerhub_Username = credentials('docker-hub-credentials').username
-        // Dockerhub_Password = credentials('docker-hub-credentials').password
-        Dockerhub_Repo = "aleksanderk534/simple-maven-app"
-        DOCKERHUB_CREDS = credentials('docker-hub-credentials')
-        // gv = load 'CI_steps.groovy'
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
     }
-    stages{
-        stage('Init') {
+
+    parameters {
+        string(name: 'BASE_VERSION', defaultValue: '', description: 'Optional MAJOR.MINOR.PATCH override. Leave blank to use VERSION.')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Registry repository, for example docker.io/your-user/simple-maven-app.')
+        string(name: 'REGISTRY_HOST', defaultValue: 'docker.io', description: 'Registry hostname used for docker login.')
+        booleanParam(name: 'PUBLISH_IMAGE', defaultValue: false, description: 'Push the tested immutable image to the container registry.')
+    }
+
+    environment {
+        PROJECT_DIRECTORY = 'Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Create Build Version') {
             steps {
                 script {
-                                    // Load the script in a stage, not in the environment block
-                    gv = load 'Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline/CI_step.groovy'
+                    def helpers = load "${env.PROJECT_DIRECTORY}/CI_step.groovy"
+                    def baseVersion = params.BASE_VERSION.trim() ?: readFile("${env.PROJECT_DIRECTORY}/VERSION").trim()
+                    env.BUILD_VERSION = helpers.createBuildVersion(baseVersion, env.BUILD_NUMBER)
                 }
-            }
-        }
-                
-        stage('Increment patch version'){
-            steps{
-                script{
-                    patch_version = gv.Increment_Version(patch_version)
-                }
-                // patch_version = gv.Increment_Version(patch_version)
+                echo "Immutable build version: ${env.BUILD_VERSION}"
             }
         }
 
-        stage('Build Java Application and clean old artifacts'){
-            steps{
+        stage('Build and Test') {
+            steps {
                 script{
-                    gv.Maven_clean_and_build('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline')
+                    def helpers = load "${env.PROJECT_DIRECTORY}/CI_step.groovy"
+                    helpers.mavenVerify(env.PROJECT_DIRECTORY)
                 }
             }
         }
 
-        stage('Build Image with dynamic Docker Image Tag'){
-            steps{
-                dir('Module_8_Build_Automation_CI_CD/Dynamically_Increment_Application_version_Jenkins_Pipeline'){
-                    script{
-                        gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
+        stage('Build Image') {
+            steps {
+                dir(env.PROJECT_DIRECTORY) {
+                    script {
+                        def helpers = load 'CI_step.groovy'
+                        helpers.buildDockerImage('simple-maven-app', env.BUILD_VERSION)
                     }
                 }
-                // gv.Build_Docker_Image(Dockerhub_Repo, patch_version)
             }
         }
 
-        stage('Push Image to private Dockerfile repository'){
-            steps{
-                script{
-                    gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS_USR, DOCKERHUB_CREDS_PSW)
-                }
-                // gv.Push_Docker_Image(Dockerhub_Repo, patch_version, DOCKERHUB_CREDS.username, DOCKERHUB_CREDS.password)
+        stage('Publish Image') {
+            when {
+                expression { return params.PUBLISH_IMAGE }
             }
-        }
-
-        stage('Commit version update of Jenkinsfile back to Git repository'){
-            steps{
-                script{
-                    gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
+            steps {
+                script {
+                    if (!params.IMAGE_REPOSITORY.trim()) {
+                        error('IMAGE_REPOSITORY is required when PUBLISH_IMAGE is enabled.')
+                    }
+                    env.PUBLISHED_IMAGE = "${params.IMAGE_REPOSITORY}:${env.BUILD_VERSION}"
                 }
-                // gv.Commit_Version_Update("aleksanderkirsten", "aleksanderkirsten@example.com", "main", "Update Jenkinsfile version to ${patch_version}")
+                withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')]) {
+                    sh '''
+                        printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" --username "$REGISTRY_USERNAME" --password-stdin
+                        docker image tag "simple-maven-app:$BUILD_VERSION" "$PUBLISHED_IMAGE"
+                        docker image push "$PUBLISHED_IMAGE"
+                        docker logout "$REGISTRY_HOST"
+                    '''
+                }
             }
         }
     }
 
-    post{
-        success{
-            echo "Build succeeded. Version updated to ${patch_version}."
-            echo "Docker image pushed to Docker Hub with tag: ${patch_version}."
+    post {
+        always {
+            archiveArtifacts artifacts: "${env.PROJECT_DIRECTORY}/target/*.jar", allowEmptyArchive: true
+            junit testResults: "${env.PROJECT_DIRECTORY}/target/surefire-reports/*.xml", allowEmptyResults: true
         }
-        failure{
-            echo "Build failed. Please check the logs for details."
-        }
-
     }
 }

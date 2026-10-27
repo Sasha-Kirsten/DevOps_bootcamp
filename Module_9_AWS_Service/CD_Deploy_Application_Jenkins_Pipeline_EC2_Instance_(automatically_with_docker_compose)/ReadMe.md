@@ -1,6 +1,36 @@
 
 # CD: Deploy Application with Jenkins Pipeline to EC2 Instance (Automatically with Docker Compose)
 
+## Demo project
+
+**Demo Project:** Continuous Delivery to Amazon EC2 with Jenkins and Docker Compose  
+**Technologies Used:** Java 21, Spring Boot, Maven, Docker, Docker Compose, Jenkins, AWS EC2, Linux, Git  
+**Project Description:** Build and test a Spring Boot service, publish an immutable Docker image, and deploy that reviewed image to an EC2 host through Docker Compose and a Jenkins approval gate.
+
+## Current implementation and verification
+
+The committed configuration is a safe Continuous Delivery template:
+
+- `mvn --batch-mode clean verify` passes with **two Spring MVC endpoint tests** for `/` and `/health` and creates `myapp/target/app.jar`.
+- The root `Dockerfile` performs the multi-stage Maven/Java 21 build; it is the only supported image build definition.
+- `docker-compose.yaml` is the **EC2 deployment definition**. It runs only `myapp`, requires an immutable `APP_IMAGE`, maps `8090:8080`, and includes a health check.
+- `Jenkinsfile` builds/tests by default. Publishing and EC2 deployment are opt-in parameters; deployment requires a manually approved immutable image and verifies `/health` after Docker Compose recreates the service.
+- The Compose configuration has been rendered successfully with a dummy image value. Docker image build/run remains dependent on a running local Docker daemon.
+
+### Jenkins parameters and credentials
+
+| Item | Purpose |
+| --- | --- |
+| `PUBLISH_IMAGE` | Disabled by default; permits registry publication of the tested image. |
+| `DEPLOY_TO_EC2` | Disabled by default; triggers a human approval gate before remote deployment. |
+| `IMAGE_REPOSITORY` | Registry repository for the immutable `1.0.<BUILD_NUMBER>` image. |
+| `EC2_HOST` | SSH target in `user@host` form. |
+| `container-registry-credentials` | Jenkins username/password credential used with `--password-stdin`. |
+| `ec2-ssh-key` | Jenkins SSH credential for the EC2 target. |
+
+For a live EC2 deployment, install Docker Engine and the Docker Compose plugin, restrict SSH to the Jenkins agent/network (or use Session Manager), and allow TCP `8090` only from required clients. Do not expose credentials, access keys, or private-key material in source control or logs.
+
+
 ## Overview
 This module builds on the single-container Docker deployment by using **Docker Compose** on the EC2 instance to manage the application. Instead of running a bare `docker run` command via SSH, Jenkins SSHes into the EC2 instance, copies a `docker-compose.yaml` file, and runs `docker-compose up` to start or recreate the service. This approach is more scalable and easier to manage when multiple services are involved.
 

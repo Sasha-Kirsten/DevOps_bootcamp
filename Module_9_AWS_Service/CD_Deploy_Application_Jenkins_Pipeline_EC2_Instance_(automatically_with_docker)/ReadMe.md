@@ -1,8 +1,16 @@
 
 # CD: Deploy Application with Jenkins Pipeline to EC2 Instance (Automatically with Docker)
 
+## Demo project
+
+**Demo Project:** Continuous Delivery to Amazon EC2 with Jenkins and Docker  
+**Technologies Used:** Java 21, Spring Boot, Maven, Docker, Jenkins, AWS EC2, Linux, Git  
+**Project Description:** Build and test a Spring Boot service, package it as an immutable Docker image, optionally publish it to a container registry, and deploy the reviewed image to an EC2 host through a Jenkins approval gate.
+
 ## Overview
-This module demonstrates how to set up a continuous deployment (CD) pipeline using Jenkins to automatically build and deploy a Spring Boot application to an AWS EC2 instance using Docker containers. Every push to the main branch triggers Jenkins to build a new Docker image and redeploy it on the EC2 instance without any manual intervention.
+This module demonstrates a safe continuous-delivery workflow for a Spring Boot application running on AWS EC2 in a Docker container. Jenkins builds and tests the application, creates an immutable image tagged with the build number, and can publish/deploy it only when the corresponding opt-in parameters are selected.
+
+> **Verification status:** `mvn clean verify` passes with two Spring MVC endpoint tests (`/` and `/health`) and produces the executable `myapp/target/app.jar`. Image publication and EC2 deployment were not run because they require real registry credentials, a reviewed AWS target, and explicit Jenkins parameter selection.
 
 ## Architecture
 ```
@@ -15,12 +23,12 @@ GitHub Repository
 Jenkins Server (local or remote)
      │  1. Clone repo
      │  2. mvn clean package
-     │  3. docker build & push → Docker Hub
+    │  3. test, docker build, optional push → container registry
      ▼
 EC2 Instance
-     │  4. docker pull (latest image)
-     │  5. docker stop old container
-     │  6. docker run new container
+    │  4. approval gate
+    │  5. docker pull immutable build image
+    │  6. replace container and verify `/health`
      ▼
 Running Application (port 8090)
 ```
@@ -111,72 +119,16 @@ Navigate to **Manage Jenkins → Credentials → (global) → Add Credentials**.
 
 ---
 
-## Step 4: Create the Jenkinsfile
+## Step 4: Use the committed Jenkinsfile
 
-Create a `Jenkinsfile` in the root of your repository:
+The committed `Jenkinsfile` is the project source of truth. It runs these stages:
 
-```groovy
-pipeline {
-    agent any
+- **Build and Test:** runs `mvn --batch-mode clean verify` and archives the executable JAR.
+- **Build Image:** tags the local image as `myapp:1.0.<BUILD_NUMBER>`.
+- **Publish Image:** disabled by default; uses `container-registry-credentials` and requires `IMAGE_REPOSITORY`.
+- **Deploy to EC2:** disabled by default; requires a published image, `EC2_HOST`, manual approval, and the `ec2-ssh-key` credential.
 
-    environment {
-        IMAGE_NAME  = "your-dockerhub-username/myapp"
-        IMAGE_TAG   = "${env.BUILD_NUMBER}"
-        EC2_HOST    = "ubuntu@<EC2_PUBLIC_IP>"
-    }
-
-    stages {
-        stage('Build JAR') {
-            steps {
-                dir('myapp') {
-                    sh 'mvn clean package -DskipTests'
-                }
-            }
-        }
-
-        stage('Build & Push Docker Image') {
-            steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh """
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -t ${IMAGE_NAME}:latest ./myapp
-                        docker push ${IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${IMAGE_NAME}:latest
-                    """
-                }
-            }
-        }
-
-        stage('Deploy to EC2') {
-            steps {
-                sshagent(['ec2-ssh-key']) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no ${EC2_HOST} '
-                            docker pull ${IMAGE_NAME}:latest &&
-                            docker stop myapp || true &&
-                            docker rm myapp || true &&
-                            docker run -d --name myapp -p 8090:8080 ${IMAGE_NAME}:latest
-                        '
-                    """
-                }
-            }
-        }
-    }
-
-    post {
-        success {
-            echo "Deployment successful! App running at http://<EC2_PUBLIC_IP>:8090"
-        }
-        failure {
-            echo "Pipeline failed. Check the logs above."
-        }
-    }
-}
-```
+The deployment uses the exact build image tag—never `latest`—and checks the local `/health` endpoint after replacing the target container.
 
 ---
 
@@ -211,9 +163,8 @@ pipeline {
 ```
 .
 ├── Jenkinsfile
-├── docker-compose.yaml         ← Runs Jenkins + Docker-in-Docker locally
+├── Dockerfile                  ← Multi-stage Maven and Java 21 image build
 └── myapp/
-    ├── Dockerfile              ← Multi-stage build (Maven → runtime image)
     ├── pom.xml
     └── src/main/java/com/example/myapp/
         ├── Application.java

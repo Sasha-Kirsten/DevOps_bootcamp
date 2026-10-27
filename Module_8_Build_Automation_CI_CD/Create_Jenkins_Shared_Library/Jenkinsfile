@@ -1,47 +1,82 @@
-#!/usr/bin/env groovy
-
-
-@Library('jenkins-shared-library@master')
-
-def gv 
+@Library('bootcamp-shared-library@main') _
 
 pipeline {
     agent any
 
-    environment {
-        // Define environment variables here
-        // Example: MY_VAR = 'value'
-        imageName = 'myApp'
+    options {
+        timestamps()
+        disableConcurrentBuilds()
     }
+
+    parameters {
+        string(name: 'APPLICATION_DIRECTORY', defaultValue: '.', description: 'Directory containing the Maven project and Dockerfile.')
+        string(name: 'IMAGE_REPOSITORY', defaultValue: '', description: 'Registry repository, for example docker.io/your-user/myapp.')
+        string(name: 'IMAGE_TAG', defaultValue: '', description: 'Immutable image tag. Defaults to the Jenkins build number.')
+        string(name: 'KUBERNETES_MANIFEST', defaultValue: '', description: 'Optional Kubernetes manifest to deploy after approval.')
+        booleanParam(name: 'PUBLISH_IMAGE', defaultValue: false, description: 'Push the tested image to the container registry.')
+        booleanParam(name: 'DEPLOY_TO_KUBERNETES', defaultValue: false, description: 'Require approval before applying KUBERNETES_MANIFEST.')
+    }
+
     stages {
-        stage('Initialize') {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build and Test') {
             steps {
                 script {
-                    gv = load 'Main.groovy'
+                    ciSteps.mavenVerify(params.APPLICATION_DIRECTORY)
                 }
             }
         }
-        stage('Build') {
+
+        stage('Build Image') {
             steps {
                 script {
-                    buildJar()
-                    buildImage(imageName)
+                    env.RESOLVED_IMAGE_TAG = params.IMAGE_TAG.trim() ? params.IMAGE_TAG.trim() : env.BUILD_NUMBER
+                    ciSteps.buildImage(params.APPLICATION_DIRECTORY, 'local-build', env.RESOLVED_IMAGE_TAG)
                 }
             }
         }
-        stage('Test') {
+
+        stage('Publish Image') {
+            when {
+                expression { return params.PUBLISH_IMAGE || params.DEPLOY_TO_KUBERNETES }
+            }
             steps {
                 script {
-                    runMavenTests()
-                    runMavenIntegrationTests()
-                    runMavenE2ETests()
-                } 
+                    if (!params.IMAGE_REPOSITORY.trim()) {
+                        error('IMAGE_REPOSITORY is required when publishing or deploying.')
+                    }
+                    env.PUBLISHED_IMAGE = "${params.IMAGE_REPOSITORY}:${env.RESOLVED_IMAGE_TAG}"
+                    ciSteps.publishImage('local-build', env.RESOLVED_IMAGE_TAG, env.PUBLISHED_IMAGE, 'container-registry-credentials')
+                }
             }
         }
-        stage('Deploy') {
+
+        stage('Approval') {
+            when {
+                expression { return params.DEPLOY_TO_KUBERNETES }
+            }
             steps {
                 script {
-                    deployApplication()
+                    if (!params.KUBERNETES_MANIFEST.trim()) {
+                        error('KUBERNETES_MANIFEST is required when deploying.')
+                    }
+                }
+                input message: 'Review the immutable image and manifest. Deploy to Kubernetes?', ok: 'Deploy'
+            }
+        }
+
+        stage('Deploy to Kubernetes') {
+            when {
+                expression { return params.DEPLOY_TO_KUBERNETES }
+            }
+            steps {
+                script {
+                    ciSteps.deployManifest(params.KUBERNETES_MANIFEST)
                 }
             }
         }

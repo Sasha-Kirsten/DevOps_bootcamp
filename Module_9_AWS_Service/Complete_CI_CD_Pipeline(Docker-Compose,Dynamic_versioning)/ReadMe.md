@@ -1,11 +1,29 @@
 
 # Complete CI/CD Pipeline with Docker Compose, Jenkins, and Dynamic Versioning
 
+## Demo project
+
+**Demo Project:** Complete CI/CD Pipeline with Docker Compose, Jenkins, and Dynamic Versioning  
+**Technologies Used:** Python, Docker, Docker Compose, Jenkins, Bash, Semantic Versioning, Git  
+**Project Description:** Validate and test a Python HTTP service, generate an immutable build tag, build a non-root container image, and optionally publish the tested image through Jenkins.
+
 ## Overview
 
 This starter project demonstrates a safe, small CI/CD workflow for a containerised Python HTTP service. Docker Compose provides a repeatable local environment, while the `Jenkinsfile` defines the automated validation, test, version, image-build, and optional publishing stages.
 
 It is deliberately a **scaffold**: image publishing and cloud deployment have clear placeholders for you to complete with your own registry and AWS target.
+
+## Verification status
+
+The following local checks have passed:
+
+- Python syntax compilation and all three unit tests.
+- An isolated HTTP smoke test of `/health` and `/`, including the expected application version response.
+- Bash syntax validation for the build, publish, and version scripts.
+- Dynamic version generation for local (`0.1.0-local`) and Jenkins (`0.1.0-ci.42`) contexts, plus rejection of an invalid base version.
+- Docker Compose configuration rendering.
+
+The Docker image build and container health check require a running Docker daemon. Start Docker Desktop or Docker Engine, then follow [Run Locally](#run-locally) to perform that final runtime check. Publishing remains disabled unless the Jenkins `PUBLISH_IMAGE` parameter is explicitly selected on the `main` branch.
 
 ## What Is Included
 

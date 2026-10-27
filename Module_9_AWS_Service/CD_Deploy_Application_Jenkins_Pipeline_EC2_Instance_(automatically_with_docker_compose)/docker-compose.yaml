@@ -1,36 +1,15 @@
-version: '3.8'
-
 services:
-  jenkins:
-    image: jenkins/jenkins:lts
-    ports:
-      - "8080:8080"
-      - "50000:50000"
-    volumes:
-      - jenkins_home:/var/jenkins_home
-    environment:
-      - JENKINS_OPTS=--httpPort=8080
-    networks:
-      - jenkins-network
-
-  docker:
-    image: docker:dind
-    privileged: true
-    networks:
-      - jenkins-network
-  
   myapp:
-    build:
-      context: ./myapp
-      dockerfile: Dockerfile
+    image: ${APP_IMAGE:?Set APP_IMAGE to the immutable image published by Jenkins.}
+    container_name: myapp
     ports:
       - "8090:8080"
-    networks:
-      - jenkins-network
-
-volumes:
-  jenkins_home:
-
-networks:
-  jenkins-network:
-    driver: bridge
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -qO- http://localhost:8080/health | grep -q '^OK$'
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

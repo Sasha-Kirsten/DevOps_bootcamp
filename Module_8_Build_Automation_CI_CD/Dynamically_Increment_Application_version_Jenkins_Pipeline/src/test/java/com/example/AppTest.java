@@ -1,14 +1,13 @@
 package com.example;
 
-import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
 
 public class AppTest {
 
     @Test
-    public void testMain() {
-        // This is a placeholder for testing the main method of App class.
-        // You can add assertions here to verify the expected behavior.
-        assertEquals(1, 1); // Example assertion
+    void greetingIsStable() {
+        assertEquals("Hello, Maven!", App.greeting());
     }
 }
