@@ -1,14 +1,15 @@
 # Values for the emailservice Helm release.
-# NGINX is used only as a simple, testable demo container.
+# An unprivileged NGINX image makes this a safe, testable demo workload.
 appName: emailservice
-appImage: nginx
-appVersion: "1.27.4"
+appImage: nginxinc/nginx-unprivileged
+appVersion: "1.27.4-alpine"
+imagePullPolicy: IfNotPresent
 appReplicas: 1
-containerPort: 80
+containerPort: 8080
 
 containerEnvVars: []
 
 service:
   type: ClusterIP
-  port: 80
-  targetPort: 80
+  port: 8080
+  targetPort: 8080

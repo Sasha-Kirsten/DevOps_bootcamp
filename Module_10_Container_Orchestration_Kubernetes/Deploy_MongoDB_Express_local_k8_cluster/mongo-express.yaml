@@ -1,49 +1,92 @@
 apiVersion: apps/v1
-kind: Deployment 
+kind: Deployment
 metadata:
   name: mongo-express
-  labels: 
-    app: mongo-express 
+  labels:
+    app.kubernetes.io/name: mongo-express
+    app.kubernetes.io/part-of: mongo-demo
 spec:
   replicas: 1
-  selector: 
+  selector:
     matchLabels:
-      app: mongo-express 
+      app.kubernetes.io/name: mongo-express
   template:
     metadata:
       labels:
-        app: mongo-express 
+        app.kubernetes.io/name: mongo-express
+        app.kubernetes.io/part-of: mongo-demo
     spec:
       containers:
-      - name: mongo-express 
-        image: mongo-express 
-        ports:
-        - containerPort: 8081
-        env:
-        - name: ME_CONFIG_MONGODB_ADMINUSERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret 
-              key: mongo-root-password 
-        - name: DATABASE_URL 
-          valueFrom:
-            ConfigMapRef:
-              name: mongodb-configmap  
-              key: database_url  
-        - name: ME_CONFIG_MONGODB_URL
-          value: "mongodb://$(ME_CONFIG_MONGODB_ADMINUSERNAME):$(ME_CONFIG_MONGODB_ADMINUSERNAME)@$(DATABASE_URL)"
+        - name: mongo-express
+          image: mongo-express:1.0.2-20-alpine3.19
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+              protocol: TCP
+          env:
+            - name: ME_CONFIG_MONGODB_ADMINUSERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: username
+            - name: ME_CONFIG_MONGODB_ADMINPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: password
+            - name: ME_CONFIG_BASICAUTH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: express_username
+            - name: ME_CONFIG_BASICAUTH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: express_password
+            - name: DATABASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: mongodb-configmap
+                  key: database_url
+            - name: ME_CONFIG_MONGODB_URL
+              value: "mongodb://$(ME_CONFIG_MONGODB_ADMINUSERNAME):$(ME_CONFIG_MONGODB_ADMINPASSWORD)@$(DATABASE_URL)/?authSource=admin"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
 
 ---
 apiVersion: v1
-kind: Service 
+kind: Service
 metadata:
-  name: mongo-express 
+  name: mongo-express
+  labels:
+    app.kubernetes.io/name: mongo-express
+    app.kubernetes.io/part-of: mongo-demo
 spec:
   selector:
-    app: mongodb-express 
-  type: LoadBalancer 
+    app.kubernetes.io/name: mongo-express
+  type: NodePort
   ports:
-  - protocol: TCP 
-    port: 8081
-    targetPort: 8081 
-    nodePort: 30000
+    - name: http
+      protocol: TCP
+      port: 8081
+      targetPort: http
+      nodePort: 30000

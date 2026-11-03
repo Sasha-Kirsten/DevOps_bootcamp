@@ -1,0 +1,84 @@
+pipeline {
+		agent any
+
+		options {
+				timestamps()
+				disableConcurrentBuilds()
+		}
+
+		parameters {
+				string(name: 'IMAGE_TAG', defaultValue: '', description: 'Immutable image tag to deploy.')
+				booleanParam(name: 'DEPLOY_TO_EKS', defaultValue: false, description: 'Require explicit opt-in before deployment.')
+		}
+
+		environment {
+				AWS_REGION = '<aws-region>'
+				EKS_CLUSTER_NAME = '<eks-cluster-name>'
+				KUBERNETES_NAMESPACE = '<application-namespace>'
+				APPLICATION_NAME = '<application-name>'
+				MANIFEST_DIRECTORY = '<path-to-kustomize-directory>'
+				IMAGE_REPOSITORY = '<registry>/<repository>'
+		}
+
+		stages {
+				stage('Checkout') {
+						steps {
+								checkout scm
+						}
+				}
+
+				stage('Validate Manifests') {
+						steps {
+								dir(env.MANIFEST_DIRECTORY) {
+										sh '''
+												kubectl kustomize . > rendered-manifests.yaml
+												kubectl apply --dry-run=client --validate=true -f rendered-manifests.yaml
+										'''
+								}
+						}
+				}
+
+				stage('Deployment Approval') {
+						when {
+								expression { return params.DEPLOY_TO_EKS }
+						}
+						steps {
+								input message: 'Deploy the reviewed immutable image to EKS?', ok: 'Deploy'
+						}
+				}
+
+				stage('Deploy to EKS') {
+						when {
+								expression { return params.DEPLOY_TO_EKS }
+						}
+						steps {
+								script {
+										if (!params.IMAGE_TAG.trim()) {
+												error('IMAGE_TAG is required when deployment is enabled.')
+										}
+								}
+								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-eks-deployer']]) {
+										sh '''
+												set -euo pipefail
+												export KUBECONFIG="$WORKSPACE/.kubeconfig"
+												trap 'rm -f "$KUBECONFIG"' EXIT
+
+												aws eks update-kubeconfig \
+													--name "$EKS_CLUSTER_NAME" \
+													--region "$AWS_REGION" \
+													--kubeconfig "$KUBECONFIG"
+
+												kubectl config current-context
+												kubectl apply --namespace "$KUBERNETES_NAMESPACE" -k "$MANIFEST_DIRECTORY"
+												kubectl set image deployment/"$APPLICATION_NAME" \
+													"$APPLICATION_NAME"="$IMAGE_REPOSITORY:$IMAGE_TAG" \
+													--namespace "$KUBERNETES_NAMESPACE"
+												kubectl rollout status deployment/"$APPLICATION_NAME" \
+													--namespace "$KUBERNETES_NAMESPACE" \
+													--timeout=180s
+										'''
+								}
+						}
+				}
+		}
+}

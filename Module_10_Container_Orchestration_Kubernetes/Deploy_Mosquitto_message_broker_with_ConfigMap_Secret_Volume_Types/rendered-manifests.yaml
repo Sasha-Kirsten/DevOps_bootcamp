@@ -1,0 +1,124 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    app.kubernetes.io/part-of: mosquitto-demo
+  name: mosquitto-demo
+---
+apiVersion: v1
+data:
+  mosquitto.conf: |
+    persistence true
+    persistence_location /mosquitto/data/
+    log_dest stdout
+    listener 1883
+    allow_anonymous false
+    password_file /mosquitto/config/passwords
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/part-of: mosquitto-demo
+  name: mosquitto-config
+  namespace: mosquitto-demo
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/part-of: mosquitto-demo
+  name: mosquitto-service
+  namespace: mosquitto-demo
+spec:
+  ports:
+  - name: mqtt
+    port: 1883
+    protocol: TCP
+    targetPort: mqtt
+  selector:
+    app.kubernetes.io/name: mosquitto
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/name: mosquitto
+    app.kubernetes.io/part-of: mosquitto-demo
+  name: mosquitto
+  namespace: mosquitto-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mosquitto
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mosquitto
+        app.kubernetes.io/part-of: mosquitto-demo
+    spec:
+      containers:
+      - image: eclipse-mosquitto:2.0.20
+        imagePullPolicy: IfNotPresent
+        livenessProbe:
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          tcpSocket:
+            port: mqtt
+        name: mosquitto
+        ports:
+        - containerPort: 1883
+          name: mqtt
+          protocol: TCP
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          tcpSocket:
+            port: mqtt
+        resources:
+          limits:
+            cpu: 250m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+        volumeMounts:
+        - mountPath: /mosquitto/config/mosquitto.conf
+          name: config
+          readOnly: true
+          subPath: mosquitto.conf
+        - mountPath: /mosquitto/config/passwords
+          name: credentials
+          readOnly: true
+          subPath: passwords
+        - mountPath: /mosquitto/data
+          name: data
+        - mountPath: /tmp
+          name: tmp
+      securityContext:
+        fsGroup: 1883
+        runAsGroup: 1883
+        runAsNonRoot: true
+        runAsUser: 1883
+      volumes:
+      - configMap:
+          name: mosquitto-config
+        name: config
+      - name: credentials
+        secret:
+          defaultMode: 288
+          secretName: mosquitto-credentials
+      - emptyDir: {}
+        name: data
+      - emptyDir: {}
+        name: tmp

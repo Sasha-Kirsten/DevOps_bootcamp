@@ -1,0 +1,38 @@
+# Copy this file to terraform.tfvars and replace every example value.
+aws_region         = "eu-central-1"
+project_name       = "portfolio"
+environment        = "dev"
+kubernetes_version = "replace-with-supported-eks-version"
+
+vpc_cidr = "10.0.0.0/16"
+
+availability_zones = [
+  "eu-central-1a",
+  "eu-central-1b"
+]
+
+public_subnet_cidrs = [
+  "10.0.0.0/20",
+  "10.0.16.0/20"
+]
+
+private_subnet_cidrs = [
+  "10.0.128.0/20",
+  "10.0.144.0/20"
+]
+
+# Keep false for a private API endpoint. Set true only when you also restrict
+# endpoint_public_access_cidrs to trusted administrative networks.
+endpoint_public_access       = false
+endpoint_public_access_cidrs = []
+
+node_instance_types = ["replace-with-approved-instance-type"]
+node_capacity_type  = "ON_DEMAND"
+node_disk_size_gib  = 20
+node_min_size       = 1
+node_desired_size   = 2
+node_max_size       = 3
+
+tags = {
+  Owner = "replace-with-your-name-or-team"
+}

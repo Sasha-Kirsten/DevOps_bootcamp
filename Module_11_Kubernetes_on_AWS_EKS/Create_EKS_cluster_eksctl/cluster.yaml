@@ -1,0 +1,25 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: # TODO: choose a unique cluster name, for example portfolio-eks
+  region: # TODO: choose an AWS region, for example eu-central-1
+  version: # TODO: use a currently supported EKS Kubernetes version
+
+iam:
+  withOIDC: true
+
+managedNodeGroups:
+  - name: # TODO: choose a node group name
+    instanceType: # TODO: select an appropriate instance type
+    desiredCapacity: # TODO: starting number of worker nodes
+    minSize: # TODO: autoscaling minimum
+    maxSize: # TODO: autoscaling maximum
+    volumeSize: # TODO: node root-volume size in GiB
+    privateNetworking: true
+    labels:
+      workload: general
+    tags:
+      Project: # TODO: project tag
+      Environment: # TODO: development or sandbox
+      Owner: # TODO: your identifier

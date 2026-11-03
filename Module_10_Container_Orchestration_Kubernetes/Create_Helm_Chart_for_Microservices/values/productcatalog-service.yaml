@@ -1,12 +1,23 @@
-appName: recommendationservice
-appImage: /recommendationservice 
-appImage: XXXX 
+appName: productcatalogservice
+fullnameOverride: productcatalogservice
+appImage: gcr.io/google-samples/microservices-demo/productcatalogservice
+appVersion: "v0.10.3"
+imagePullPolicy: IfNotPresent
 appReplicas: 2
 containerPort: 3550
-containerEnvVars: 
-- name: PORT 
-  value: "3550"
-- name: DISABLE_PROFILER
-  value: "1"
+containerEnvVars:
+  - name: PORT
+    value: "3550"
+  - name: DISABLE_PROFILER
+    value: "1"
 
-servicePort: 8080 
+service:
+  type: ClusterIP
+  port: 3550
+  targetPort: 3550
+
+probes:
+  enabled: false
+
+testConnection:
+  enabled: false

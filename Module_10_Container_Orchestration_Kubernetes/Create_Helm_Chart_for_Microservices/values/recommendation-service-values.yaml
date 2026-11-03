@@ -1,6 +1,8 @@
 appName: recommendationservice
-appImage: example-registry/recommendationservice
-appVersion: "1.0.0"
+fullnameOverride: recommendationservice
+appImage: gcr.io/google-samples/microservices-demo/recommendationservice
+appVersion: "v0.10.3"
+imagePullPolicy: IfNotPresent
 appReplicas: 2
 containerPort: 8080
 
@@ -14,3 +16,9 @@ service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
+
+probes:
+  enabled: false
+
+testConnection:
+  enabled: false

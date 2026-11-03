@@ -1,44 +1,94 @@
-apiVersion: apps/v1
-kind: Deployment 
-metadata: 
-  name: mongodb-deployment 
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-data
   labels:
-    app: mongodb 
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/part-of: mongo-demo
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  labels:
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/part-of: mongo-demo
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
-      app: mongodb 
+      app.kubernetes.io/name: mongodb
   template:
     metadata:
       labels:
-        app: mongodb 
+        app.kubernetes.io/name: mongodb
+        app.kubernetes.io/part-of: mongo-demo
     spec:
       containers:
-      - name: mongodb 
-        image: mongo 
-        ports:
-        - containerPort: 27017
-        env:
-        - name: MONGO_INITDB_ROOT_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret 
-              key: monogodb-root-username 
-        - name: MONGO_INITDB_ROOT_PASSWORD 
-          valueFrom:
-            secretKeyRef:
-              name: mongodb-secret 
-              key: mongo-root-password 
+        - name: mongodb
+          image: mongo:8.0.5
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mongodb
+              containerPort: 27017
+              protocol: TCP
+          env:
+            - name: MONGO_INITDB_ROOT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: username
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mongodb-secret
+                  key: password
+          volumeMounts:
+            - name: mongodb-data
+              mountPath: /data/db
+          readinessProbe:
+            tcpSocket:
+              port: mongodb
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mongodb
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: mongodb-data
+          persistentVolumeClaim:
+            claimName: mongodb-data
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: mongodb-service 
-spec: 
+  name: mongodb-service
+  labels:
+    app.kubernetes.io/name: mongodb
+    app.kubernetes.io/part-of: mongo-demo
+spec:
+  type: ClusterIP
   selector:
-    app: mongodb 
+    app.kubernetes.io/name: mongodb
   ports:
-  - protocol: TCP
-    port: 27017
-    targetPort: 27017 
+    - name: mongodb
+      protocol: TCP
+      port: 27017
+      targetPort: mongodb

@@ -1,0 +1,9 @@
+aws_region       = "eu-central-1"
+eks_cluster_name = "replace-with-existing-eks-cluster-name"
+private_subnet_ids = [
+  "subnet-0123456789abcdef0",
+  "subnet-0123456789abcdef1"
+]
+
+project_name = "portfolio"
+environment  = "dev"

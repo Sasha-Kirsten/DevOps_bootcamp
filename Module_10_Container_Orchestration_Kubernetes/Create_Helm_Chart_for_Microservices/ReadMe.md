@@ -1,144 +1,116 @@
-# Deploying a MongoDB Microservices Demo with Helm
+# Reusable Microservice Helm Chart
 
-This exercise explores how **Helm** can package and configure a small Kubernetes application made up of two cooperating services:
+## Demo project
 
-- **MongoDB** is the stateful database. It stores the application data and requires persistent storage.
-- **Mongo Express** is a web administration UI. It connects to MongoDB with the database administrator credentials.
-- **NGINX Ingress** exposes the Mongo Express web UI through a hostname instead of a direct service port.
+**Technologies:** Helm 3/4, Kubernetes, YAML, Docker container images, NGINX
 
-The intended outcome is a reusable Helm chart: common `Deployment` and `Service` boilerplate should live in shared templates, while each component supplies only its own image, ports, environment variables, and configuration values.
+This project packages the repeated Kubernetes resources needed by a stateless microservice: a `Deployment`, `Service`, optional `Ingress`, and optional Helm connection test. It uses a single chart with values files for an NGINX demonstration and three Online Boutique microservice examples.
 
 ## Architecture
 
 ```text
-Browser
-	|
-	| http(s)://<host>/
-	v
-NGINX Ingress Controller
-	|
-	v
-mongo-express-service :8081
-	|
-	v
-Mongo Express Pod :8081
-	|
-	| MongoDB connection URL + administrator credentials
-	v
-MongoDB Service
-	|
-	v
-MongoDB Stateful workload + persistent volume
+Client
+  │
+  ├─ optional HTTP Ingress
+  │       │
+  └───────▼
+       Service
+          │
+          ▼
+  Deployment → replicated application Pods
 ```
 
-Only Mongo Express needs external HTTP routing. MongoDB should remain an internal cluster service; exposing a database directly through an Ingress is both unnecessary and unsafe.
+Each release is isolated by standard Helm labels. `fullnameOverride` is available for services that must retain a fixed DNS name for inter-service communication.
 
-## Files in this directory
+## Chart contents
 
-| File | Purpose | Notes |
-| --- | --- | --- |
-| `helm-mongodb.yaml` | MongoDB Helm values override. | Requests replica-style architecture, three replicas, a Linode storage class, and a root password. It is **not** a Kubernetes resource manifest by itself. |
-| `helm-mongo-express.yaml` | Mongo Express `Deployment` and `Service`. | Defines the web UI image, port `8081`, and MongoDB credential environment variables. This should ultimately become a Helm template. |
-| `helm-ingress.yaml` | Ingress for the Mongo Express service. | Routes `/` on a chosen host to `mongo-express-service:8081`. |
-| `test-kubeconfig.yaml` | Kubeconfig structure/template. | Holds cluster, user, context, and token fields. It is not an application manifest and must never be committed with live credentials. |
+| Path | Purpose |
+| --- | --- |
+| `templates/deployment.yaml` | Creates the application Pods with an image, environment variables, optional HTTP probes, and resource limits. |
+| `templates/service.yaml` | Exposes the Pods through a Kubernetes Service. |
+| `templates/ingress.yaml` | Creates an Ingress only when `ingress.enabled=true`. |
+| `templates/tests/test-connection.yaml` | Helm test hook that curls the HTTP service when enabled. |
+| `values.schema.json` | Rejects missing or malformed required chart values before rendering. |
+| `values/` | Valid example overrides for recommendation, product-catalog, and email services. |
+| `rendered-manifests.yaml` | Generated default render for review; do not edit by hand. |
 
-## Helm concepts demonstrated
+`config.yaml` is a standalone, valid Service example retained for comparison. The Helm chart source of truth is `Chart.yaml`, `values.yaml`, and `templates/`.
 
-Helm separates the reusable application definition from environment-specific settings:
+## Default behavior
 
-- **Chart templates** generate Kubernetes resources such as Deployments, Services, Secrets, and Ingresses.
-- **Values files** provide settings for a particular environment—for example replica count, storage class, hostname, or image tag.
-- A **release** is an installed instance of a chart. The same chart can be installed separately in development, staging, and production with different values.
+The default release deploys `nginxinc/nginx-unprivileged:1.27.4-alpine` on port `8080`, with conservative resource requests/limits and HTTP readiness/liveness probes.
 
-For a finished shared chart, a sensible layout would be:
+- Publishing an Ingress is disabled by default.
+- The Helm connection test is enabled by default for the HTTP NGINX example.
+- The Online Boutique service values disable HTTP probes and the curl hook because these examples expose gRPC-oriented workloads rather than this chart's generic HTTP contract.
 
-```text
-mongo-demo/
-	Chart.yaml
-	values.yaml
-	templates/
-		_helpers.tpl
-		deployment.yaml
-		service.yaml
-		ingress.yaml
-		secret.yaml
+## Validate locally
+
+From this directory, validate the chart without contacting a Kubernetes cluster:
+
+```sh
+helm lint .
+helm lint . -f values/recommendation-service-values.yaml
+helm template nginx-demo . > rendered-manifests.yaml
+kubectl apply --dry-run=client --validate=true -f rendered-manifests.yaml
 ```
 
-The `Deployment` and `Service` templates can be parameterized with a component name, container image, container port, service port, labels, and environment variables. This avoids duplicating standard Kubernetes metadata, selectors, and service definitions for every microservice.
+Use the same lint/template commands with `productcatalog-service.yaml` and `email-service-values.yaml` to validate their overrides.
 
-## Prerequisites
+## Deploy the NGINX demo
 
-Before deploying, ensure that you have:
-
-- A working Kubernetes cluster and a valid current kubeconfig context.
-- `kubectl` and Helm 3 installed.
-- An NGINX Ingress controller installed if you plan to use `helm-ingress.yaml`.
-- A storage class named `linode-block-storage`, or a replacement storage class appropriate for your cluster.
-- A DNS record (or local hosts-file entry for testing) matching the Ingress host.
-
-Confirm the selected cluster before changing anything:
+First verify the active target cluster and create a disposable namespace:
 
 ```sh
 kubectl config current-context
-kubectl get nodes
-kubectl get storageclass
+kubectl create namespace microservice-demo
 ```
 
-## Deployment workflow
-
-1. **Create an isolated namespace.** Keeping the demo separate makes resources and cleanup easier to manage.
-2. **Install MongoDB from a Helm chart** using a reviewed values file. Use a Kubernetes Secret or a Helm secret-management solution for the database password rather than storing it as plaintext in source control.
-3. **Deploy Mongo Express.** Its connection URL must point to the MongoDB Service name created by the database release, and its password reference must use the actual Secret name and key created by that chart.
-4. **Apply the Ingress** after setting a real `metadata.name` and `spec.rules[].host` value.
-5. **Verify the rollout** before opening the UI.
-
-Useful verification commands are:
+Install and verify the release:
 
 ```sh
-kubectl get pods,services,ingress -n <namespace>
-kubectl rollout status deployment/mongo-express -n <namespace>
-kubectl logs deployment/mongo-express -n <namespace>
-kubectl describe ingress <ingress-name> -n <namespace>
+helm upgrade --install nginx-demo . --namespace microservice-demo --create-namespace
+kubectl rollout status deployment/nginx-demo -n microservice-demo
+helm test nginx-demo -n microservice-demo
+kubectl port-forward service/nginx-demo 8080:8080 -n microservice-demo
 ```
 
-For a temporary local check without DNS or Ingress, port-forward the service and open `http://localhost:8081`:
+With the port-forward running, browse to `http://localhost:8080` or use an HTTP client. Clean up after the demonstration:
 
 ```sh
-kubectl port-forward service/mongo-express-service 8081:8081 -n <namespace>
+helm uninstall nginx-demo -n microservice-demo
+kubectl delete namespace microservice-demo
 ```
 
-## Important configuration gaps to resolve
+## Install a service-specific configuration
 
-These files are a learning scaffold and require the following corrections before they can be applied successfully:
-
-1. `helm-mongodb.yaml` contains a plaintext sample password. Replace it with a secure, externally supplied value and do not commit real secrets.
-2. The key `persistance` is misspelled. The exact persistence key also depends on the MongoDB chart version, so check that chart's `values.yaml` before installing.
-3. `helm-mongo-express.yaml` has a label mismatch: the Deployment selector uses `app: mongo-express`, but the pod template says `app: monog-express`. Kubernetes requires those labels to match.
-4. `ME_CONFIG_MONGODB_URL` is blank. Set it to the MongoDB service endpoint expected by the selected MongoDB chart.
-5. The Mongo Express manifest assumes a Secret named `mongodb` with a `mongodb-root-password` key. Confirm the installed chart actually creates that name and key, or parameterize both values in the Helm chart.
-6. `helm-ingress.yaml` has an empty resource name and the placeholder host `XXX`; both must be set. The ingress class must also match the controller installed in the cluster.
-7. The YAML indentation under the Mongo Express Service selector should be corrected so `app: mongo-express` is nested under `selector`.
-8. `test-kubeconfig.yaml` is a template only. Populate it through a trusted provider workflow, restrict its file permissions, and keep tokens out of Git.
-
-## Production-minded improvements
-
-To evolve this demo beyond the exercise, add the following to the chart:
-
-- Resource requests and limits for both containers.
-- Liveness and readiness probes, especially for the Mongo Express HTTP endpoint.
-- A dedicated non-root database user for the UI instead of the MongoDB root user.
-- TLS on the Ingress, with certificate management such as cert-manager.
-- NetworkPolicies that permit MongoDB traffic only from approved workloads.
-- Persistent-volume sizing, backup/restore procedures, and a tested recovery plan.
-- Pinned container image versions instead of the untagged `mongo-express` image.
-
-## Cleanup
-
-Remove the Helm release and namespace once you have finished experimenting:
+The examples use fixed service names so that the Online Boutique services can refer to each other by DNS. Install each one as a separate release in the same namespace:
 
 ```sh
-helm uninstall <mongodb-release> -n <namespace>
-kubectl delete namespace <namespace>
+helm upgrade --install productcatalog . -n microservice-demo -f values/productcatalog-service.yaml
+helm upgrade --install recommendation . -n microservice-demo -f values/recommendation-service-values.yaml
+helm upgrade --install email . -n microservice-demo -f values/email-service-values.yaml
 ```
 
-Deleting a release or namespace does not always delete the underlying persistent volume. Inspect persistent-volume claims deliberately if you need to retain or permanently remove database data.
+The examples are chart-rendering references, not a complete Online Boutique installation: they do not include every dependency, configuration setting, or production health endpoint required by that application.
+
+## Enable Ingress intentionally
+
+Ingress requires a controller and DNS name that you control. It is disabled by default. To render it safely, supply both an enabled flag and host:
+
+```sh
+helm template nginx-demo . --set ingress.enabled=true --set ingress.host=nginx.example.test
+```
+
+For real use, configure TLS and an appropriate `ingress.className`; do not expose internal services unless they need public routing.
+
+## Security and production notes
+
+- Keep credentials, tokens, and private configuration out of values files; use Kubernetes Secrets or an external secret manager.
+- Pin reviewed image tags or, preferably, immutable image digests for production deployments.
+- Set service-specific requests, limits, probes, and NetworkPolicies based on measured workload behavior.
+- Use namespace isolation, RBAC, TLS, and policy controls appropriate for the target environment.
+
+## Verification status
+
+The default NGINX configuration plus all three service overrides have passed `helm lint`, `helm template`, and `kubectl apply --dry-run=client --validate=true`. No cluster resources, images, or external services were created during these validations. A live Helm install and `helm test` still require an accessible Kubernetes cluster.

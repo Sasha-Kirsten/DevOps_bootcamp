@@ -1,12 +1,29 @@
+helmDefaults:
+  createNamespace: true
+  wait: true
+  waitForJobs: true
+  atomic: true
+  cleanupOnFail: true
+  timeout: 300
+  historyMax: 10
+
 releases:
-  # Both releases use the reusable chart in the sibling directory.
-  # Each release supplies its own application-specific values file.
+  # Both releases use the validated reusable chart in the sibling directory.
+  # Values files define only component-specific settings.
   - name: emailservice
+    namespace: microservice-demo
     chart: ../Create_Helm_Chart_for_Microservices
+    labels:
+      app.kubernetes.io/part-of: helmfile-demo
+      app.kubernetes.io/component: email
     values:
       - values/email-service-values.yaml
 
   - name: cartservice
+    namespace: microservice-demo
     chart: ../Create_Helm_Chart_for_Microservices
+    labels:
+      app.kubernetes.io/part-of: helmfile-demo
+      app.kubernetes.io/component: cart
     values:
       - values/cart-service-values.yaml

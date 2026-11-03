@@ -1,0 +1,117 @@
+pipeline{
+    agent any
+
+    options{
+        timestamp()
+        disableConcurrentBuilds()
+    }
+
+    parameters{
+        string(
+
+        )
+        booleanParam(
+
+        )
+    }
+
+    environment{
+
+    }
+
+    stages{
+        stage('Checkout'){
+            steps{
+                checkout scm
+            }
+        }
+        stage('Validate Kubernetes Manifests'){
+            steps {
+                dir(env.MANIFEST_DIRECTORY) {
+                    sh '''
+                        kubectl kustomize . > rendered-manifests.yaml
+                        kubectl apply \
+                          --dry-run=client \
+                          --validate=true \
+                          -f rendered-manifests.yaml
+                    '''
+                }
+            }
+        }
+        stage('Deploy Approval'){
+            when {
+                expression { return params.DEPLOY_TO_LKE }
+            }
+            steps {
+                input(
+                    message: 'Deploy the reviewed image to the LKE cluster?',
+                    ok: 'Deploy'
+                )
+            }
+        }
+
+        stage('Deploy to LKE'){
+            when {
+                expression { return params.DEPLOY_TO_LKE }
+            }
+            steps {
+                script {
+                    if (!params.IMAGE_TAG.trim()) {
+                        error('IMAGE_TAG is required when deployment is enabled.')
+                    }
+                }
+
+                withCredentials([
+                    file(
+                        credentialsId: env.KUBECONFIG_CREDENTIAL_ID,
+                        variable: 'KUBECONFIG_FILE'
+                    )
+                ]) {
+                    dir(env.MANIFEST_DIRECTORY) {
+                        sh '''
+                            export KUBECONFIG="$KUBECONFIG_FILE"
+
+                            kubectl config current-context
+
+                            kubectl apply \
+                              --namespace "$KUBERNETES_NAMESPACE" \
+                              -k . \
+                              --server-side
+
+                            kubectl set image \
+                              deployment/"$APPLICATION_NAME" \
+                              "$APPLICATION_NAME"="$IMAGE_REPOSITORY:$IMAGE_TAG" \
+                              --namespace "$KUBERNETES_NAMESPACE"
+
+                            kubectl rollout status \
+                              deployment/"$APPLICATION_NAME" \
+                              --namespace "$KUBERNETES_NAMESPACE" \
+                              --timeout=180s
+                        '''
+                    }
+                }
+            }
+        }
+        stage('Verify Deployment'){
+            when {
+                expression { return params.DEPLOY_TO_LKE }
+            }
+            steps {
+                withCredentials([
+                    file(
+                        credentialsId: env.KUBECONFIG_CREDENTIAL_ID,
+                        variable: 'KUBECONFIG_FILE'
+                    )
+                ]) {
+                    sh '''
+                        export KUBECONFIG="$KUBECONFIG_FILE"
+
+                        kubectl get deployment,service,pods \
+                          --namespace "$KUBERNETES_NAMESPACE" \
+                          -l "app.kubernetes.io/name=$APPLICATION_NAME"
+                    '''
+                }
+            }
+        }
+    }
+}

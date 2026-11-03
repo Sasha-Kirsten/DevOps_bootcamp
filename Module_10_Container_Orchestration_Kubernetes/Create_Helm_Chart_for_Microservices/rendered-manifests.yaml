@@ -1,0 +1,101 @@
+---
+# Source: microservice/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-demo
+  labels:
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+    app.kubernetes.io/version: "1.27.4-alpine"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: "microservice-0.1.0"
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+---
+# Source: microservice/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-demo
+  labels:
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+    app.kubernetes.io/version: "1.27.4-alpine"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: "microservice-0.1.0"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nginx-demo
+      app.kubernetes.io/instance: nginx-demo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nginx-demo
+        app.kubernetes.io/instance: nginx-demo
+    spec:
+      containers:
+        - name: nginx-demo
+          image: "nginxinc/nginx-unprivileged:1.27.4-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: ENV_VAR_ONE
+              value: "valueone"
+            - name: ENV_VAR_TWO
+              value: "valuetwo"
+          readinessProbe:
+            httpGet:
+              path: "/"
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: "/"
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            limits:
+              cpu: 250m
+              memory: 128Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+---
+# Source: microservice/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "nginx-demo-connection-test"
+  labels:
+    app.kubernetes.io/name: nginx-demo
+    app.kubernetes.io/instance: nginx-demo
+    app.kubernetes.io/version: "1.27.4-alpine"
+    app.kubernetes.io/managed-by: Helm
+    helm.sh/chart: "microservice-0.1.0"
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: connection-test
+      image: curlimages/curl:8.10.1
+      command:
+        - sh
+        - -ec
+        - "curl --fail --silent --show-error http://nginx-demo:8080/"

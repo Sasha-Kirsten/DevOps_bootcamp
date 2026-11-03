@@ -1,0 +1,68 @@
+#!/bin/env groovy
+pipeline{
+    agent any
+    tools{
+        maven 'Maven'
+    }
+    stages{
+        stage('increment version'){
+            steps(){
+                script{
+                    echo ''
+                    sh 'mvn build-helper:parse-version version:set \
+                        -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion} \
+                        versions:commit'
+                    def matcher = readFile('pom.xml') =~ '<version>(.+)</version>'
+                    def version = matcher[0][1]
+                    env.IMAGE_TAG = "${version}-${BUILD_NUMBER}"
+                    echo "New version: ${env.IMAGE_TAG}"
+                }
+            }
+            stage('Build app'){
+                steps(){
+                    sh 'mvn clean package'
+                }
+            }
+            stage('build image'){
+                steps{
+                    script{
+                        echo 'building docker image...'
+                        withCredentials([usernamePassword(credentialsId: 'docker-hub-credentials', usernameVariable: 'REGISTRY_USERNAME', passwordVariable: 'REGISTRY_PASSWORD')]) {
+                            sh 'docker build -t aleksanderkirsten/demoapp:${IMAGE_TAG} .'
+                            sh 'echo $PASS | docker login -u $USER --password-stdin'
+                            sh 'docker push aleksanderkirsten/demoapp:${IMAGE_TAG}'
+                        }
+
+                    }
+                }
+            }
+            stage('Deploy'){
+                environment{
+                    AWS_ACCESS_KEY_ID = credentials('aws-access-key-id')
+                    AWS_SECRET_ACCESS_KEY = credentials('aws-secret-access-key')
+                    APP_NAME = 'java-maven-app'
+                }
+                steps(){
+                    script{
+                        echo 'deploying docker image...'
+                        sh 'envsubst < kubernetes/deployment.yaml | kubectl apply -f -'
+                        sh 'envsubst < kubernetes/service.yaml | kubectl apply -f -'
+                    }
+                }
+            }
+            stage('Commit version update'){
+                steps{
+                    script{
+                        withCredentials([usernamePassword(credentialsId: 'github-credentials', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_PASSWORD')]) {
+                            sh '''
+                                git config user.name "$GITHUB_USERNAME"
+                                git config user.email "$GITHUB_EMAIL"
+                            '''
+                        }
+                    }
+                }
+            }
+
+        }
+    }
+}

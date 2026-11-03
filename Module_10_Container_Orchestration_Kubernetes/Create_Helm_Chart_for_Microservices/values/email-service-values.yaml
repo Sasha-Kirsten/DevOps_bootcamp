@@ -1,11 +1,21 @@
-appName: emailservice  
-appImage: XXXX /emailservice  
-appVersion: 
+appName: emailservice
+fullnameOverride: emailservice
+appImage: gcr.io/google-samples/microservices-demo/emailservice
+appVersion: "v0.10.3"
+imagePullPolicy: IfNotPresent
 appReplicas: 2
 containerPort: 8080
 containerEnvVars:
-- key: PORT 
-  value: "8080"
+  - name: PORT
+    value: "8080"
 
-servicePort: 5000
-# serviceType: ClusterIP 
+service:
+  type: ClusterIP
+  port: 5000
+  targetPort: 8080
+
+probes:
+  enabled: false
+
+testConnection:
+  enabled: false

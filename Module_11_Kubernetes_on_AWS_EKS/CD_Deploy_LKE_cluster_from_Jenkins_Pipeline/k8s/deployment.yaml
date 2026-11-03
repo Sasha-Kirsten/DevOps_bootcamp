@@ -1,0 +1,58 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ""
+  namespace: ""
+  labels:
+    app.kubernetes.io/name: ""
+    app.kubernetes.io/part-of: ""
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ""
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ""
+        app.kubernetes.io/part-of: ""
+    spec:
+      containers:
+        - name: ""
+          image: ""
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 0
+              protocol: TCP
+
+          readinessProbe:
+            httpGet:
+              path: ""
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 0
+
+          livenessProbe:
+            httpGet:
+              path: ""
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 0
+
+          resources:
+            requests:
+              cpu: ""
+              memory: ""
+            limits:
+              cpu: ""
+              memory: ""
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL

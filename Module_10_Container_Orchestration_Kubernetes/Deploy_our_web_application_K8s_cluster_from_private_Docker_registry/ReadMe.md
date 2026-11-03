@@ -29,7 +29,7 @@ The registry Secret is used only while Kubernetes pulls the image. It is not aut
 
 ## Files in this directory
 
-| File | Intended resource | Purpose |
+| File | Intended resource | Purpose |<account-id>.dkr.ecr.eu-central-1.amazonaws.com/<repository>@sha256:<digest>
 | --- | --- | --- |
 | `docker-secret.yaml` | `Secret/my-registry-key` | Holds Docker client configuration in the `.dockerconfigjson` key for ECR authentication. |
 | `my-app-deployment.yaml` | `Deployment/my-app` | Runs one application Pod from the private ECR image and exposes container port `3000` inside the Pod. |

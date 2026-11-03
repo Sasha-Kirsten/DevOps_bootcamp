@@ -1,27 +1,13 @@
-# # apiVersion: v2
-# # name: redis
-# # description: A Helm chart for kubernetes
-
-# # type: application 
-
-# # version: 0.1.0
-
-# apiVersion: v2 
-# # appName: redis
-# appReplicas: 1
-# appImage: redis
-# appVersion: "7.4"
-# containerPort: 6379
-# serviceType: ClusterIP
-
-# service:
-#   port: 6379
-#   targetPort: 6379
-
-
 apiVersion: v2
 name: microservice
 description: A reusable Helm chart for a Kubernetes microservice
 type: application
 version: 0.1.0
-appVersion: "1.0.0"
+appVersion: "1.27.4-alpine"
+icon: https://helm.sh/img/helm.svg
+keywords:
+  - microservice
+  - kubernetes
+  - helm
+maintainers:
+  - name: Aleksander Kirsten

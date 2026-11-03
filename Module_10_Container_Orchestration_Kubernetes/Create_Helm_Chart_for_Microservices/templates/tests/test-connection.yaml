@@ -1,0 +1,19 @@
+{{- if .Values.testConnection.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "microservice.fullname" . }}-connection-test"
+  labels:
+    {{- include "microservice.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+spec:
+  restartPolicy: Never
+  containers:
+    - name: connection-test
+      image: curlimages/curl:8.10.1
+      command:
+        - sh
+        - -ec
+        - "curl --fail --silent --show-error http://{{ include "microservice.fullname" . }}:{{ .Values.service.port }}{{ .Values.probes.path }}"
+      {{- end }}

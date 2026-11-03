@@ -1,22 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Values.appName }}
+  name: {{ include "microservice.fullname" . }}
   labels:
-    app: {{ .Values.appName }}
+    {{- include "microservice.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.appReplicas }}
   selector:
     matchLabels:
-      app: {{ .Values.appName }}
+      {{- include "microservice.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        app: {{ .Values.appName }}
+        {{- include "microservice.selectorLabels" . | nindent 8 }}
     spec:
       containers:
-        - name: {{ .Values.appName }}
-          image: "{{ .Values.appImage }}:{{ .Values.appVersion }}"
+        - name: {{ include "microservice.name" . }}
+          image: "{{ required "appImage is required" .Values.appImage }}:{{ required "appVersion is required" .Values.appVersion }}"
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
           ports:
             - name: http
               containerPort: {{ .Values.containerPort }}
@@ -28,3 +29,19 @@ spec:
               value: {{ .value | quote }}
             {{- end }}
           {{- end }}
+          {{- if .Values.probes.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.probes.path | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.probes.path | quote }}
+              port: http
+            initialDelaySeconds: {{ .Values.probes.initialDelaySeconds }}
+            periodSeconds: {{ .Values.probes.periodSeconds }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

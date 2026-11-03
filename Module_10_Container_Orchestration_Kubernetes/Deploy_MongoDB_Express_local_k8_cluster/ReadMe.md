@@ -1,168 +1,122 @@
-# MongoDB and Mongo Express on a Local Kubernetes Cluster
+# MongoDB and Mongo Express on Local Kubernetes
 
-This project deploys a small two-tier application to a local Kubernetes cluster created with **Minikube**:
+## Demo project
 
-- **MongoDB** provides the database on port `27017`.
-- **Mongo Express** provides a browser-based MongoDB administration interface on port `8081`.
-- A Kubernetes **Secret** supplies credentials to containers without hard-coding them in Deployment definitions.
-- A **ConfigMap** supplies the MongoDB service address to Mongo Express.
+**Technologies:** Kubernetes, Minikube, Kustomize, MongoDB, Mongo Express, Docker
 
-The exercise demonstrates the Kubernetes pattern of separating application workloads from configuration and sensitive values.
+This project deploys a small, namespace-isolated MongoDB stack for local Kubernetes practice. MongoDB remains reachable only within the cluster; Mongo Express is exposed through a local `NodePort` for browser access.
+
+It is a **local development demonstration**, not a production database platform. The included credentials are deliberately non-sensitive local examples and must be replaced through an external secret workflow in any shared or production environment.
 
 ## Architecture
 
 ```text
 Browser
-	|
-	| http://<Minikube-IP>:30000
-	v
-mongo-express Service (NodePort / port 30000)
-	|
-	v
+  │ http://<minikube-ip>:30000
+  ▼
+mongo-express Service (NodePort)
+  ▼
 Mongo Express Pod :8081
-	|                 ^
-	|                 |
-	| ConfigMap: MongoDB service URL
-	| Secret: database credentials
-	v
-mongodb-service :27017
-	|
-	v
-MongoDB Pod :27017
-	^
-	|
-Secret: root username and password
+  │  ▲ Secret credentials + ConfigMap service address
+  ▼
+mongodb-service :27017 (ClusterIP)
+  ▼
+MongoDB Pod + PersistentVolumeClaim
 ```
 
-MongoDB is exposed only through the internal `mongodb-service`, so other pods in the cluster can reach it using `mongodb-service:27017`. Mongo Express is the only component intended to be reachable from outside the cluster.
+All application resources are deployed to the `mongo-demo` namespace. The MongoDB Service is `ClusterIP`, so it is never directly exposed outside the cluster.
 
-## Manifest inventory
+## What is included
 
-| File | Resources | Role in the deployment |
-| --- | --- | --- |
-| `secret.yaml` | `Secret/mongodb-secret` | Stores the database username and password as Base64-encoded values. |
-| `config.yaml` | `ConfigMap/mongodb-configmap` | Stores the MongoDB internal service address in `database_url`. |
-| `mongo.yaml` | `Deployment/mongodb-deployment`, `Service/mongodb-service` | Runs MongoDB and provides stable internal DNS on port `27017`. |
-| `mongo-express.yaml` | `Deployment/mongo-express`, `Service/mongo-express` | Runs the web UI and exposes it through a `NodePort` service on port `30000`. |
+| File | Role |
+| --- | --- |
+| `kustomization.yaml` | Single deployment entry point; applies every resource in the correct namespace. |
+| `namespace.yaml` | Creates the isolated `mongo-demo` namespace. |
+| `secret.yaml` | Local-only MongoDB root credentials using `stringData`. |
+| `config.yaml` | Provides the internal MongoDB DNS address to Mongo Express. |
+| `mongo.yaml` | MongoDB PVC, Deployment, and internal ClusterIP Service. |
+| `mongo-express.yaml` | Mongo Express Deployment and externally reachable NodePort Service. |
+
+Both container images are pinned, deployments have resource requests/limits, and readiness/liveness probes identify unavailable workloads.
 
 ## Prerequisites
 
-- Docker Desktop (or another supported container runtime) running locally.
-- Minikube.
+- Minikube with a working container runtime.
 - `kubectl`.
+- A Minikube storage provisioner (enabled by default in a typical Minikube installation) to satisfy the `1Gi` PVC.
 
-On macOS, install the Kubernetes tools with Homebrew:
-
-```sh
-brew install kubectl minikube
-```
-
-Start a local cluster and verify that Kubernetes is ready:
+Start and inspect the local cluster before any deployment:
 
 ```sh
 minikube start
 kubectl config current-context
 kubectl get nodes
+kubectl get storageclass
 ```
 
-The active context should normally be `minikube`.
+The selected context should be your intended local cluster, commonly `minikube`.
 
-## Configuration flow
+## Validate without changing a cluster
 
-Kubernetes injects values into a container through environment variables:
-
-1. The MongoDB Deployment reads a root username and password from `mongodb-secret`.
-2. The `mongodb-service` selects MongoDB pods and makes them discoverable at `mongodb-service:27017`.
-3. `mongodb-configmap` stores that service address under `database_url`.
-4. The Mongo Express Deployment reads the database address from the ConfigMap and credentials from the Secret, then uses them to build its MongoDB connection URL.
-
-Secret data in YAML is Base64 **encoded**, not encrypted. Do not place real production passwords in this repository. Use a secret manager or create secrets directly in the target environment for real deployments.
-
-## Deploy the application
-
-Create the configuration resources before workloads that reference them:
+Render the Kustomize resources and run Kubernetes client-side validation:
 
 ```sh
-kubectl apply -f secret.yaml
-kubectl apply -f config.yaml
-kubectl apply -f mongo.yaml
-kubectl apply -f mongo-express.yaml
+kubectl kustomize . > rendered-manifests.yaml
+kubectl apply --dry-run=client --validate=true -f rendered-manifests.yaml
 ```
 
-Confirm that the resources have been created and wait for the Pods to become ready:
+This detects structural/API-schema errors but does not pull images, provision storage, or create cluster resources.
+
+## Deploy and verify
+
+After confirming the current context is safe, apply the entire stack:
 
 ```sh
-kubectl get deployments,pods,services
-kubectl rollout status deployment/mongodb-deployment
-kubectl rollout status deployment/mongo-express
+kubectl apply -k .
+kubectl rollout status deployment/mongodb -n mongo-demo
+kubectl rollout status deployment/mongo-express -n mongo-demo
+kubectl get pods,services,pvc -n mongo-demo
 ```
 
-### Open Mongo Express
-
-For a Minikube-native URL, run:
+Obtain a Minikube URL for Mongo Express:
 
 ```sh
-minikube service mongo-express --url
+minikube service mongo-express --namespace mongo-demo --url
 ```
 
-Open the returned URL in a browser. Alternatively, on a driver that exposes NodePorts directly, use the Minikube IP with port `30000`:
+Alternatively, use a port-forward that does not depend on NodePort routing:
 
 ```sh
-minikube ip
+kubectl port-forward service/mongo-express 8081:8081 -n mongo-demo
 ```
 
-Then browse to `http://<minikube-ip>:30000`.
-
-If NodePort networking is unavailable with your Minikube driver, use a port-forward instead:
-
-```sh
-kubectl port-forward service/mongo-express 8081:8081
-```
-
-Open `http://localhost:8081` while the port-forward remains running.
-
-## Corrections required in the current YAML
-
-The manifests demonstrate the right resource types and wiring concept, but their references must be aligned before the deployment will succeed:
-
-1. **Secret keys do not match their references.** `secret.yaml` defines `username` and `password`, whereas `mongo.yaml` requests `monogodb-root-username` and `mongo-root-password`. Use the same keys in both places.
-2. **The Mongo Express administrator username is wired to a password key.** `ME_CONFIG_MONGODB_ADMINUSERNAME` must read the username key, and a separate `ME_CONFIG_MONGODB_ADMINPASSWORD` variable should read the password key.
-3. **`ConfigMapRef` is not a valid environment-value source.** Replace it with `configMapKeyRef` when reading `database_url` from `mongodb-configmap`.
-4. **The Mongo Express Service selector is incorrect.** It selects `app: mongodb-express`, while the Mongo Express Pod label is `app: mongo-express`; the selector must match the Pod label or the service will have no endpoints.
-5. **Review the MongoDB connection URI.** After correcting the environment variable names, use the username and password values once each and point to `mongodb-service:27017`.
-6. **Pin image versions** rather than relying on the untagged `mongo` and `mongo-express` images, which can change unexpectedly.
-
-After making a manifest change, reapply that file and check the workload logs:
-
-```sh
-kubectl apply -f mongo.yaml
-kubectl apply -f mongo-express.yaml
-kubectl logs deployment/mongodb-deployment
-kubectl logs deployment/mongo-express
-```
+Open `http://localhost:8081` while the port-forward remains active. Mongo Express uses the distinct `express_username` and `express_password` local demo values in `secret.yaml` for browser basic authentication; do not reuse them elsewhere.
 
 ## Troubleshooting
 
-| Symptom | What to check |
+| Symptom | Check |
 | --- | --- |
-| Pod is in `CreateContainerConfigError` | Verify the referenced Secret/ConfigMap names and keys exist: `kubectl describe pod <pod-name>`. |
-| Mongo Express loads but cannot connect | Confirm that `mongodb-service` has endpoints and validate the connection URL and credentials. |
-| Service has no endpoints | Compare the Service `spec.selector` labels with the pod-template labels. |
-| Browser cannot reach the UI | Use `minikube service mongo-express --url` or the port-forward fallback. |
-| Image cannot be pulled | Confirm Docker is running and use a valid, pinned image tag. |
+| PVC remains `Pending` | Verify a default StorageClass and Minikube storage provisioner: `kubectl get storageclass`. |
+| Mongo Express cannot connect | Confirm both rollouts completed and inspect `kubectl logs deployment/mongo-express -n mongo-demo`. |
+| Service has no endpoints | Compare the Service selector with the pod labels using `kubectl get endpoints -n mongo-demo`. |
+| Browser cannot reach NodePort | Use the documented port-forward fallback. |
+| Pod cannot start | Inspect events with `kubectl describe pod <pod> -n mongo-demo`. |
+
+## Production considerations
+
+- Do not commit credentials; use an external secret manager or sealed/encrypted secret workflow.
+- Pin images by digest after security review rather than only by tag.
+- Use a StatefulSet, backups, tested restoration, authentication/authorization policies, TLS, NetworkPolicies, and monitoring for a production MongoDB deployment.
+- Expose administrative interfaces only through authenticated, encrypted access paths—not a public NodePort.
 
 ## Cleanup
 
-Remove the resources when you finish the exercise:
+Remove the whole demo and its PVC:
 
 ```sh
-kubectl delete -f mongo-express.yaml
-kubectl delete -f mongo.yaml
-kubectl delete -f config.yaml
-kubectl delete -f secret.yaml
-minikube stop
+kubectl delete -k .
 ```
 
-Use `minikube delete` instead of `minikube stop` only when you want to remove the whole local cluster and all data stored in it.
+Confirm the PVC removal deliberately if you changed the storage-retention behavior or stored data you intend to preserve.
 
 

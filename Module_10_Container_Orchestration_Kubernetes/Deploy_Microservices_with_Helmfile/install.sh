@@ -1,12 +1,13 @@
-helm install -f values/redis-values.yaml rediscart charts/redis
+#!/usr/bin/env bash
+set -euo pipefail
 
-helm install -f values/email-service-values.yaml emailservice charts/microservice 
-helm install -f values/cart-service-values.yaml cartservice charts/microservice
-helm install -f values/currency-service-values.yaml currencyservice charts/microservice
-helm install -f values/recommendation-service-values.yaml recommendationservice charts/microservice
-helm install -f values/shipping-service-values.yaml shippingservice charts/microservice
-helm install -f values/frontend-values.yaml frontend charts/frontend
-helm install -f values/payment-service-values.yaml paymentservice charts/microservice
-helm install -f values/product-catalog-service-values.yaml productcatalogservice charts/microservice
-helm install -f values/ad-service-values.yaml adservice charts/microservice
+if [[ "${CONFIRM_DEPLOY:-}" != "yes" ]]; then
+	echo "Refusing to modify a cluster. Re-run with CONFIRM_DEPLOY=yes after reviewing the active kubeconfig context." >&2
+	exit 1
+fi
+
+command -v helmfile >/dev/null || { echo "helmfile is required." >&2; exit 1; }
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+helmfile --file "${script_dir}/helmfile.yaml" sync "$@"
  
