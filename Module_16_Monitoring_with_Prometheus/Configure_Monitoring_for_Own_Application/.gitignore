@@ -1,0 +1,5 @@
+# Runtime-only secrets and local overrides
+*.secret.yaml
+.env
+.venv/
+__pycache__/

@@ -1,0 +1,16 @@
+{{/*  apiVersion: v1
+kind: CronJob 
+metadata:
+  name: backup-cronjob
+spec:
+  schedule: ""
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: 
+            image: {{ .Values.imageRegistry }}/:{{ .Values.dockerTag }}
+            imagePullPolicy: {{ .Values.pullPolicy}}
+            command:
+            restartPolicy:  */ }}

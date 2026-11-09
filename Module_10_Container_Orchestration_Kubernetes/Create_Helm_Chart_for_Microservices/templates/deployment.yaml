@@ -14,6 +14,8 @@ spec:
       labels:
         {{- include "microservice.selectorLabels" . | nindent 8 }}
     spec:
+      # TODO: Add chart values for pod/container securityContext, serviceAccount,
+      # and automountServiceAccountToken before using this for production workloads.
       containers:
         - name: {{ include "microservice.name" . }}
           image: "{{ required "appImage is required" .Values.appImage }}:{{ required "appVersion is required" .Values.appVersion }}"
@@ -29,6 +31,8 @@ spec:
               value: {{ .value | quote }}
             {{- end }}
           {{- end }}
+          # TODO: This chart supports only HTTP probes. Add exec, TCP, or gRPC
+          # probe modes when charting services with a different health protocol.
           {{- if .Values.probes.enabled }}
           readinessProbe:
             httpGet:

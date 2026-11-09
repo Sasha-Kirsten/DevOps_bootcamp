@@ -8,22 +8,23 @@ helmDefaults:
   historyMax: 10
 
 releases:
-  # Both releases use the validated reusable chart in the sibling directory.
-  # Values files define only component-specific settings.
-  - name: emailservice
+  # TODO: This is a runnable website plus cache demonstration, not an integrated
+  # business application. Add a real application release that uses Redis before
+  # presenting it as an end-to-end microservices system.
+  - name: storefront
     namespace: microservice-demo
     chart: ../Create_Helm_Chart_for_Microservices
     labels:
       app.kubernetes.io/part-of: helmfile-demo
-      app.kubernetes.io/component: email
+      app.kubernetes.io/component: frontend
     values:
       - values/email-service-values.yaml
 
-  - name: cartservice
+  - name: cart-cache
     namespace: microservice-demo
-    chart: ../Create_Helm_Chart_for_Microservices
+    chart: ./charts/redis 
     labels:
       app.kubernetes.io/part-of: helmfile-demo
-      app.kubernetes.io/component: cart
+      app.kubernetes.io/component: cache
     values:
-      - values/cart-service-values.yaml
+      - values/redis-production-values.yaml

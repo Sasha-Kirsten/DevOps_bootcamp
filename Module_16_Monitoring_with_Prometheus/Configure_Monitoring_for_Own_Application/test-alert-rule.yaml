@@ -1,0 +1,22 @@
+# Apply only after configuring a real receiver. This rule intentionally fires after one minute and can send email.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: redis-monitoring-pipeline-test
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: redis.monitoring.test
+      rules:
+        - alert: RedisMonitoringPipelineTest
+          expr: vector(1)
+          for: 1m
+          labels:
+            severity: info
+            service: redis-cart
+            test: "true"
+          annotations:
+            summary: Redis monitoring notification pipeline test
+            description: Remove this rule after confirming that Alertmanager delivered the test notification.

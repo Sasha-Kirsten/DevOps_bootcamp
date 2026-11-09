@@ -1,0 +1,13 @@
+apiVersion: v2
+name: redis 
+description: A reusable Helm chart for a Kubernetes microservice
+type: application
+version: 0.1.0
+appVersion: "7.4.2-alpine"
+
+
+
+
+
+
+

@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: mosquitto-auth-smoke-test
+  namespace: mosquitto-demo
+  labels:
+    app.kubernetes.io/component: smoke-test
+    app.kubernetes.io/part-of: mosquitto-demo
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1883
+        runAsGroup: 1883
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mqtt-auth-smoke-test
+          image: eclipse-mosquitto:2.0.20
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MQTT_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: mosquitto-credentials
+                  key: username
+            - name: MQTT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mosquitto-credentials
+                  key: password
+          command:
+            - sh
+            - -ec
+            - |
+              if mosquitto_pub -h mosquitto-service -p 1883 -t demo/auth-check -m rejected; then
+                echo "Anonymous MQTT publish unexpectedly succeeded" >&2
+                exit 1
+              fi
+              mosquitto_sub -h mosquitto-service -p 1883 -u "$MQTT_USERNAME" -P "$MQTT_PASSWORD" -t demo/auth-check -C 1 > /tmp/received &
+              subscriber_pid=$!
+              sleep 2
+              mosquitto_pub -h mosquitto-service -p 1883 -u "$MQTT_USERNAME" -P "$MQTT_PASSWORD" -t demo/auth-check -m verified
+              wait "$subscriber_pid"
+              test "$(cat /tmp/received)" = "verified"
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}

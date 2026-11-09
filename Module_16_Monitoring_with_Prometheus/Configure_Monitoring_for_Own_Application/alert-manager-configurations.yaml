@@ -3,6 +3,8 @@ kind: AlertmanagerConfig
 metadata:
   name: redis-application-email
   namespace: monitoring
+  labels:
+    release: monitoring
 spec:
   # TODO(routing): Route critical alerts to an on-call channel and warnings to a lower-noise channel. Add environment,
   # team, and service matchers as the project grows to prevent cross-environment notification noise.
@@ -28,5 +30,5 @@ spec:
       authUsername: 'replace-with-sender@example.com'
       authIdentity: 'replace-with-sender@example.com'
       authPassword:
-        name: gmail-auth 
+        name: gmail-auth
         key: password

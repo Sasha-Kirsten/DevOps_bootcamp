@@ -1,15 +1,30 @@
-# Values for the emailservice Helm release.
-# An unprivileged NGINX image makes this a safe, testable demo workload.
-appName: emailservice
-appImage: nginxinc/nginx-unprivileged
-appVersion: "1.27.4-alpine"
+# Values for the storefront Helm release.
+# Podinfo is a real HTTP demonstration application with a health endpoint.
+appName: storefront
+fullnameOverride: storefront
+appImage: stefanprodan/podinfo
+appVersion: "6.7.1"
 imagePullPolicy: IfNotPresent
-appReplicas: 1
-containerPort: 8080
+appReplicas: 2
+containerPort: 9898
 
-containerEnvVars: []
+containerEnvVars:
+  - name: PODINFO_UI_COLOR
+    value: "#345995"
 
 service:
   type: ClusterIP
-  port: 8080
-  targetPort: 8080
+  port: 9898
+  targetPort: 9898
+
+probes:
+  enabled: true
+  path: /healthz
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+testConnection:
+  enabled: true
+
+# TODO: Pin podinfo by digest after verifying the selected image in your own
+# container registry and vulnerability-scanning workflow.

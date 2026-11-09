@@ -11,6 +11,8 @@ spec:
   restartPolicy: Never
   containers:
     - name: connection-test
+      # TODO: Pin this test image by digest after security review. This test is
+      # HTTP-only; keep it disabled for gRPC services or add a protocol-aware test.
       image: curlimages/curl:8.10.1
       command:
         - sh

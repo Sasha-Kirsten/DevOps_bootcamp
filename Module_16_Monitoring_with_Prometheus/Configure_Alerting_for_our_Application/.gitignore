@@ -1,0 +1,3 @@
+# SMTP passwords and locally generated secret manifests are credential material.
+*.secret.yaml
+.env

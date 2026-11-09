@@ -1,5 +1,10 @@
 # Configure Application Alerting with Prometheus and Alertmanager
 
+> **Use `README-operator-runbook.md` as the current guide.** It matches the
+> corrected manifests, documents the currently missing kube-prometheus-stack
+> prerequisite, and contains the future execution commands. The remainder of
+> this file is preserved only as earlier learning notes.
+
 ## Overview
 
 This project demonstrates the alerting flow in a Kubernetes cluster running the Prometheus Operator through the `kube-prometheus-stack` Helm chart:

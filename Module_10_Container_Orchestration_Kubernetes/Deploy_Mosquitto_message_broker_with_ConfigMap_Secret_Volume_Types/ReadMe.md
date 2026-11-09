@@ -1,161 +1,141 @@
-### Overview
-# Mosquitto with ConfigMap and Secret Volumes — Beginner Notes
+# Mosquitto MQTT Broker with ConfigMap and Secret Volumes
 
-## The goal in one sentence
+## Demo scope
 
-Run a Mosquitto MQTT broker in Kubernetes, mount its normal configuration from a **ConfigMap**, and mount its login-password file from a **Secret**.
+**Technologies:** Kubernetes, Docker, Eclipse Mosquitto, ConfigMaps, Secrets, and MQTT.
 
-Do not try to build everything at once. Complete one baby step, check it works, then continue.
+This project is a runnable **local Kubernetes learning demo**. It deploys an authenticated Mosquitto MQTT broker, mounts non-sensitive configuration from a ConfigMap, mounts its password file from a Secret, and provides an opt-in in-cluster smoke test.
 
-## What each Kubernetes object does
+It is not a production message-broker platform. The broker has one replica, no TLS listener, no NetworkPolicy, and ephemeral message persistence. Those constraints are explicit so the project is honest when you present it.
 
-| Object | Simple explanation | Used for in this project |
-| --- | --- | --- |
-| `ConfigMap` | Stores normal, non-secret text configuration. | Holds `mosquitto.conf`. |
-| `Secret` | Stores sensitive data. Values are encoded, not encrypted. | Holds Mosquitto's password file. |
-| `Deployment` | Tells Kubernetes which container to run and how it should be configured. | Runs the Mosquitto Docker image. |
-| `Service` | Gives Pods a stable name and port inside the cluster. | Lets clients use `mosquitto-service:1883`. |
-| `volume` | Makes ConfigMap or Secret data available as files in a container. | Mounts the configuration and password file where Mosquitto expects them. |
-
-## The finished flow
+## Architecture
 
 ```text
-MQTT client Pod
+MQTT smoke-test Job
 	|
 	| mqtt://mosquitto-service:1883
 	v
-Kubernetes Service
+Mosquitto Service (ClusterIP)
 	|
 	v
 Mosquitto Pod
-   |          |
-   v          v
-ConfigMap    Secret
-config file  password file
+   |                  |
+   v                  v
+ConfigMap        Secret volume
+mosquitto.conf   hashed password file
 ```
 
-## Baby steps
+All resources use the `mosquitto-demo` namespace. The broker is a `ClusterIP` service and is not publicly exposed.
 
-### Step 1 — Read the configuration first
+## Repository layout
 
-Open `config.yaml`. It contains the resources required for the demo, in the order you should understand them:
-
-1. ConfigMap
-2. Secret
-3. Deployment
-4. Service
-
-Read the comments before editing anything. The original generic `XXXX` template has been replaced because it was not related to Mosquitto.
-
-### Step 2 — Understand `mosquitto.conf`
-
-The ConfigMap contains this important Mosquitto configuration:
-
-```conf
-listener 1883
-allow_anonymous false
-password_file /mosquitto/config/passwords
-```
-
-It means:
-
-- Listen for MQTT connections on port `1883`.
-- Reject clients that do not provide credentials.
-- Look for the credentials file at `/mosquitto/config/passwords`.
-
-That path must exactly match the Secret volume mount in the Deployment.
-
-### Step 3 — Create a real password file
-
-Mosquitto does **not** use a plain `username=password` file. It requires a password hash created with `mosquitto_passwd`.
-
-Create a local password file for a test user, for example `demo-user`. Then copy the generated, hashed file content into the `stringData.passwords` section of the Secret in `config.yaml`.
-
-**Learning rule:** Never commit a real password file to a public repository. Use a throwaway credential only for this local exercise. In production, create the Secret through a secure secret-management workflow.
-
-### Step 4 — Check the volume mounts
-
-In the Deployment, find `volumeMounts` and `volumes`.
-
-- The `ConfigMap` mount places `mosquitto.conf` at `/mosquitto/config/mosquitto.conf`.
-- The `Secret` mount places the `passwords` file at `/mosquitto/config/passwords`.
-
-Kubernetes creates these files when the Pod starts. You do not need to build a custom Docker image just to add configuration or credentials.
-
-### Step 5 — Apply the manifest
-
-Once you have added a safe test password hash, apply all four resources:
-
-```sh
-kubectl apply -f config.yaml
-kubectl get configmap,secret,deployment,pods,service
-kubectl rollout status deployment/mosquitto
-```
-
-If the Pod does not start, inspect its events before changing the YAML:
-
-```sh
-kubectl describe pod -l app=mosquitto
-kubectl logs deployment/mosquitto
-```
-
-### Step 6 — Test a client connection
-
-The Service is `ClusterIP`, which means it is available only inside the Kubernetes cluster. A client Pod should connect to:
-
-```text
-mosquitto-service:1883
-```
-
-Test these two outcomes:
-
-1. A connection without a username/password is rejected.
-2. A connection using your test username and password can publish and subscribe to the same MQTT topic.
-
-For a short local experiment, you can also forward the broker port:
-
-```sh
-kubectl port-forward service/mosquitto-service 1883:1883
-```
-
-Then point a local MQTT client at `localhost:1883`.
-
-## Common beginner mistakes
-
-| Problem | What to check |
+| File | Purpose |
 | --- | --- |
-| Mosquitto starts without requiring a password | Ensure `allow_anonymous false` is in the ConfigMap and the ConfigMap is mounted at the expected path. |
-| Pod reports that `passwords` is missing | Confirm the Secret key is called `passwords` and its mount uses the same key. |
-| Client cannot connect | Check the Service selector is `app: mosquitto`, port `1883` is used, and the Pod is Ready. |
-| Password is rejected | Regenerate it with `mosquitto_passwd`; do not manually type a plain-text value into the password file. |
-| Service has no endpoints | Compare the Service selector with the Pod label in the Deployment. They must match exactly. |
+| `config.yaml` | Namespace, ConfigMap, Mosquitto Deployment, and internal Service. |
+| `mqtt-auth-smoke-test.yaml` | Optional Job that proves anonymous publishing is rejected and authenticated publish/subscribe works. |
+| `.gitignore` | Prevents the locally generated `passwords` credential file from being committed. |
 
-## When you are ready for the next level
+## How ConfigMap and Secret volumes work
 
-After the basic demo works, consider adding:
+`config.yaml` mounts the ConfigMap key `mosquitto.conf` at `/mosquitto/config/mosquitto.conf`. The externally created `mosquitto-credentials` Secret mounts its `passwords` key at `/mosquitto/config/passwords`.
 
-- A PersistentVolumeClaim for `/mosquitto/data` if MQTT persistence is required.
-- Resource requests and limits.
-- Readiness and liveness probes.
-- TLS certificates and secure MQTT on port `8883`.
-- NetworkPolicies limiting which Pods can connect to the broker.
+The Mosquitto configuration enables the listener on port `1883`, disables anonymous access, and points `password_file` to that Secret-backed path. The path, Secret name, and key must remain aligned.
+
+## Prepare local-only credentials
+
+Mosquitto needs a **hashed password file**, not a `username=password` text file. The generated `passwords` file is ignored by Git.
+
+On macOS, install the Mosquitto CLI once with Homebrew:
+
+```sh
+brew install mosquitto
+```
+
+Alternatively, if Docker is available, generate the hash with the exact broker image used by this project—no local Mosquitto installation required:
+
+```sh
+docker run --rm -it -v "$PWD:/work" eclipse-mosquitto:2.0.20 \
+  mosquitto_passwd -c /work/passwords demo-user
+```
+
+After completing either option, create the local Kubernetes Secret. Enter the **same throwaway password** when prompted here as you entered for `mosquitto_passwd`:
+
+```sh
+kubectl create namespace mosquitto-demo --dry-run=client -o yaml | kubectl apply -f -
+read -rs MQTT_PASSWORD; printf '\n'
+kubectl create secret generic mosquitto-credentials \
+  --namespace mosquitto-demo \
+  --from-file=passwords=./passwords \
+  --from-literal=username=demo-user \
+  --from-literal=password="$MQTT_PASSWORD" \
+  --dry-run=client -o yaml | kubectl apply -f -
+unset MQTT_PASSWORD
+```
+
+The plain `password` key exists only so the disposable smoke-test Job can authenticate. Do not copy this pattern unchanged to a shared cluster; use an external secret manager and avoid putting credentials in shell history.
+
+## Validate without changing a cluster
+
+From this directory, validate the static API structure:
+
+```sh
+kubectl apply --dry-run=client --validate=true -f config.yaml
+kubectl apply --dry-run=client --validate=true -f mqtt-auth-smoke-test.yaml
+```
+
+These commands do not verify that the Secret exists, images can be pulled, the broker starts, or MQTT authentication behaves correctly.
+
+## Deploy and test on a disposable cluster
+
+Confirm the target context before applying anything; this demonstration is intended for Minikube, Kind, or another disposable cluster.
+
+```sh
+kubectl config current-context
+kubectl get nodes
+kubectl apply -f config.yaml
+kubectl rollout status deployment/mosquitto -n mosquitto-demo --timeout=120s
+kubectl apply -f mqtt-auth-smoke-test.yaml
+kubectl wait --for=condition=complete job/mosquitto-auth-smoke-test -n mosquitto-demo --timeout=120s
+kubectl logs job/mosquitto-auth-smoke-test -n mosquitto-demo
+```
+
+The smoke test verifies both required outcomes:
+
+1. An anonymous publish is rejected.
+2. The supplied local credentials can publish and subscribe to `demo/auth-check`.
+
+For temporary access from your workstation, use port-forwarding rather than changing the Service to a public type:
+
+```sh
+kubectl port-forward service/mosquitto-service 1883:1883 -n mosquitto-demo
+```
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Pod cannot mount the password file | Confirm `mosquitto-credentials` exists and has a `passwords` key. |
+| Broker crashes at startup | Inspect `kubectl logs deployment/mosquitto -n mosquitto-demo`; the password file must be generated by `mosquitto_passwd`. |
+| Service has no endpoints | Confirm the Pod is Ready and its `app.kubernetes.io/name: mosquitto` label matches the Service selector. |
+| Smoke test times out | Wait for the broker rollout, then inspect the Job and Deployment logs. |
+| Data vanishes after recreation | Expected: `/mosquitto/data` currently uses an ephemeral `emptyDir` volume. |
+
+## Improvements for production
+
+- Replace `emptyDir` with a StatefulSet and PersistentVolumeClaim only alongside tested backup and restore procedures.
+- Create TLS certificates and add a secure MQTT listener on port `8883`; enforce authenticated, encrypted client connections.
+- Use an external secret manager, rotate credentials, and grant workloads only the Secret access they need.
+- Add NetworkPolicies that allow MQTT ingress only from known application labels.
+- Pin reviewed container image digests, scan them in CI, and add admission policies.
+- Add broker metrics, dashboards, alerts, a PodDisruptionBudget, and capacity limits based on observed workload behavior.
+
+## Verification status
+
+The source manifests are designed for client-side schema validation. A successful live rollout and MQTT authentication result must be captured separately on a disposable cluster; no live deployment is implied by static validation.
 
 ## Cleanup
 
-Remove every resource created by this exercise:
-
 ```sh
-kubectl delete -f config.yaml
+kubectl delete namespace mosquitto-demo
+rm -f ./passwords
 ```
-
-### Prerequisites
-Technologies used: Kubernetes, Docker and Mosquitto.
-
-### Contents
-Project Description:
-1. Define configuration and passwords for Mosquitto message broker with ConfigMap and Secret Volume types.
-
-### Getting Started
-
-
-### Resources

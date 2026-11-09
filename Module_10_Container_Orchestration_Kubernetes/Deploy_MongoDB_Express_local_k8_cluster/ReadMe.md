@@ -109,6 +109,23 @@ Open `http://localhost:8081` while the port-forward remains active. Mongo Expres
 - Use a StatefulSet, backups, tested restoration, authentication/authorization policies, TLS, NetworkPolicies, and monitoring for a production MongoDB deployment.
 - Expose administrative interfaces only through authenticated, encrypted access paths—not a public NodePort.
 
+## Verification status
+
+The following non-destructive checks have passed:
+
+- `kubectl kustomize .`
+- `kubectl apply --dry-run=client --validate=true -f <rendered-manifests>`
+
+The validation rendered and client-side validated the Namespace, ConfigMap, Secret, two Services, PersistentVolumeClaim, and both Deployments. It does not prove that images can be pulled, the PVC can bind, MongoDB accepts the supplied credentials, or Mongo Express can reach MongoDB.
+
+Before presenting a live demonstration, run the deployment workflow on a disposable Minikube cluster and capture redacted evidence of:
+
+1. Both Deployments completing their rollouts.
+2. A Bound `mongodb-data` PVC.
+3. Ready Pods and populated Service endpoints.
+4. A successful Mongo Express browser login through port-forward or the Minikube Service URL.
+5. A Mongo Express connection to the `mongodb-service` database endpoint.
+
 ## Cleanup
 
 Remove the whole demo and its PVC:

@@ -1,34 +1,39 @@
-# apiVersion: monitoring.coreos.com/v1beta1 
-# apiVersion: monitoring.coreos.com/v1
-# kind: Alertmanager
 apiVersion: monitoring.coreos.com/v1alpha1
 kind: AlertmanagerConfig
 metadata:
-  name: main-rules-alert-config  
+  name: application-email-routing
   namespace: monitoring
-  # labels:
-  #   app: kube-prometheus-stack 
-  #   releases: monitoring
+  labels:
+    # Confirm this label matches Alertmanager.spec.alertmanagerConfigSelector.
+    release: monitoring
+    app.kubernetes.io/part-of: application-alerting-demo
 spec:
-  route: 
-    receiver: 'email'
-    repeatInterval: 30m 
-    routes: 
-    - matchers:
-      - name: alertname
-        value: HostHighCpuLoad 
-    - matchers:
-      - name: alertname
-        value: KubernetesPodCrashLooping
-      repeatInterval: 10m 
+  route:
+    receiver: platform-email
+    groupBy:
+      - alertname
+      - namespace
+      - severity
+    groupWait: 30s
+    groupInterval: 5m
+    repeatInterval: 4h
+    routes:
+      - receiver: platform-email
+        matchers:
+          - name: team
+            value: platform
+            regex: false
   receivers:
-  - name: 'email'
-    emailConfigs:
-    - to: 'example@email.com'
-      from: 'example@email.com'
-      smarthost: 'smtp.gmail.com:587'
-      authUsername:
-      authIdentity: 'example@email.com'
-      authPassword: 
-        name: gmail-auth 
-        key: password 
+    - name: platform-email
+      emailConfigs:
+        # TODO: Replace the example addresses and SMTP server with a real
+        # environment-specific receiver before applying this configuration.
+        - to: alerts@example.invalid
+          from: alerts@example.invalid
+          smarthost: smtp.example.invalid:587
+          authUsername: alerts@example.invalid
+          authIdentity: alerts@example.invalid
+          authPassword:
+            name: smtp-auth
+            key: password
+          requireTLS: true

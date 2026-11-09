@@ -6,7 +6,13 @@ redisAddress: redis://replace-with-third-party-redis-hostname:6379
 # Enable only when the third-party Redis endpoint uses TLS.
 redisTlsConfig:
   enabled: false
-  insecureSkipVerify: false
+  # This is the chart's current value name. Keep verification enabled.
+  skipTlsVerification: false
+  # For a provider private CA, reference a Secret containing the CA certificate instead of disabling verification.
+  caCertFile:
+    secret:
+      name: ""
+      key: ""
 
 # Enable password authentication when the vendor requires it.
 # Create the Secret outside Git and replace the name/key below.
@@ -15,6 +21,8 @@ auth:
   secret:
     name: third-party-redis-auth
     key: password
+  # Set only when the vendor requires a Redis ACL username (Redis 6+).
+  redisUser: ""
 
 serviceMonitor:
   enabled: true

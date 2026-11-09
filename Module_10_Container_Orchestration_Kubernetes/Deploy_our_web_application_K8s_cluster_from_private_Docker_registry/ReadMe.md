@@ -1,5 +1,10 @@
 # Deploy a Web Application from Private Amazon ECR
 
+> **Current implementation:** the runnable project guide is in `README-new.md`.
+> It matches the validated Kustomize package, `create-ecr-pull-secret.sh`, and
+> the `private-ecr-demo` namespace. This original file is retained temporarily
+> for the lesson history; do not follow its obsolete `docker-secret.yaml` steps.
+
 This project demonstrates how a Kubernetes cluster pulls a container image from a **private Amazon Elastic Container Registry (ECR)** repository.
 
 Public images can be pulled by any cluster node. A private ECR repository requires authentication first. This demo supplies that authentication to Kubernetes as a Docker-registry Secret, then references the Secret from the application Pod specification through `imagePullSecrets`.
@@ -29,12 +34,15 @@ The registry Secret is used only while Kubernetes pulls the image. It is not aut
 
 ## Files in this directory
 
-| File | Intended resource | Purpose |<account-id>.dkr.ecr.eu-central-1.amazonaws.com/<repository>@sha256:<digest>
+| File | Intended resource | Purpose |
 | --- | --- | --- |
-| `docker-secret.yaml` | `Secret/my-registry-key` | Holds Docker client configuration in the `.dockerconfigjson` key for ECR authentication. |
-| `my-app-deployment.yaml` | `Deployment/my-app` | Runs one application Pod from the private ECR image and exposes container port `3000` inside the Pod. |
+| `create-ecr-pull-secret.sh` | `Secret/my-registry-key` | Creates or refreshes ECR credentials without committing the expiring token. |
+| `namespace.yaml` | `Namespace/private-ecr-demo` | Isolates this learning deployment. |
+| `my-app-deployment.yaml` | `Deployment/my-app` | Runs one application Pod from a private ECR image with `imagePullSecrets`. |
+| `service.yaml` | `Service/my-app` | Provides private in-cluster access to port `3000`. |
+| `kustomization.yaml` | Kustomize entry point | Renders the namespace, Deployment, and Service. |
 
-> **Note:** The current files are a learning scaffold and need the corrections listed below before applying them.
+> **Note:** `docker-secret.yaml` is intentionally a non-deployable deprecation notice. The ECR pull Secret must be created at runtime with `create-ecr-pull-secret.sh`.
 
 ## Prerequisites
 
@@ -105,7 +113,7 @@ Before applying `my-app-deployment.yaml`, replace the placeholder image with you
 <aws-account-id>.dkr.ecr.<aws-region>.amazonaws.com/<repository-name>:<image-tag>
 ```
 
-Then add the pull-secret reference under `spec.template.spec`:
+The current Deployment already contains the pull-secret reference under `spec.template.spec`:
 
 ```yaml
 imagePullSecrets:
@@ -128,19 +136,19 @@ For a temporary local test without adding a Service, forward port `3000` from th
 kubectl port-forward deployment/my-app 3000:3000 --namespace "$NAMESPACE"
 ```
 
-## Corrections required in the current YAML
+## Implementation status
 
-1. **Do not use `cat docker/config.json` as a YAML value.** The `.dockerconfigjson` field must contain Base64-encoded Docker config JSON. Prefer creating the Secret with `kubectl create secret docker-registry` as shown above, rather than committing it to `docker-secret.yaml`.
-2. **Use `imagePullSecrets`, not `imagePullPolicy`, for the registry Secret.** In `my-app-deployment.yaml`, replace the invalid top-level `imagePullPolicy` list under `spec.template.spec` with:
+1. **No ECR token is committed.** Use `bash create-ecr-pull-secret.sh` to create the required Docker-registry Secret from a fresh ECR authorization token.
+2. **The Deployment uses `imagePullSecrets`.** The invalid top-level `imagePullPolicy` list has been replaced with:
 
 	 ```yaml
 	 imagePullSecrets:
 		 - name: my-registry-key
 	 ```
 
-	 `imagePullPolicy: Always` belongs in the individual container definition, where it already appears.
-3. **Replace the placeholder image.** `XXXXX.dkr.ecr.eu-central-1.amazonaws.com/XXXX` is not a valid deployable image reference. Add the repository name and a pinned image tag.
-4. **Use the correct AWS region identifier.** The login command must use `--region eu-central-1` for the registry hostname in this example.
+	 `imagePullPolicy: Always` remains on the individual container definition.
+3. **Replace the private-image placeholder.** The valid placeholder allows static Kubernetes validation, but it does not point to a real ECR image. Prefer a digest for the real deployment.
+4. **Use the correct AWS region identifier.** The default region is `eu-central-1` for Frankfurt; update `.env` and the image reference together when using another region.
 
 ## Troubleshooting
 

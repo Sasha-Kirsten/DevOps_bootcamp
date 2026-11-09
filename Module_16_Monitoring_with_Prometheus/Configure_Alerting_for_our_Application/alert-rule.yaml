@@ -1,30 +1,34 @@
-apiVersion: monitoring.coreos.com/v1 
-kind: Prometheus
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
 metadata:
-  name: main
+  name: application-alert-rules
   namespace: monitoring
   labels:
-    app: kube-prometheus-stack 
-    releases: monitoring
+    # kube-prometheus-stack commonly selects rules using its Helm release name.
+    # Confirm the installed Prometheus ruleSelector before changing this label.
+    release: monitoring
+    app.kubernetes.io/part-of: application-alerting-demo
 spec:
   groups:
-  - name: main.rules 
-    rules:
-    - alert: HostHighCpuLoad 
-      expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 50
-      for: 2m 
-      labels:
-        severity: warning 
-        namespace: monitoring
-      annotations:
-        description: "Avaliable CPU is reaching it's limit."
-        summary: "Host CPU Load High" 
-    - alert:
-      expr:
-      for:
-      labels:
-        severity:
-        namespace:
-      annotations:
-        description:
-        summary:
+    - name: application.rules
+      rules:
+        - alert: HostHighCpuLoad
+          expr: 100 - (avg by (instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 85
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Host CPU utilisation is high
+            description: CPU utilisation on {{ $labels.instance }} has remained above 85% for 10 minutes.
+            runbook_url: https://example.invalid/runbooks/host-high-cpu
+        - alert: KubernetesPodCrashLooping
+          expr: max_over_time(kube_pod_container_status_waiting_reason{reason="CrashLoopBackOff"}[5m]) >= 1
+          for: 15m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: Kubernetes container is crash looping
+            description: Container {{ $labels.container }} in Pod {{ $labels.namespace }}/{{ $labels.pod }} has been in CrashLoopBackOff for 15 minutes.
+            runbook_url: https://example.invalid/runbooks/kubernetes-pod-crash-looping

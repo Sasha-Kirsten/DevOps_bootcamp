@@ -67,14 +67,24 @@ def index():
 
 @app.get("/healthz")
 def healthz():
-    # TODO(operations): Split this into `/livez` (process is alive) and `/readyz` (Redis dependency is ready).
-    # Liveness should not restart a healthy process merely because an external dependency is temporarily unavailable.
+    return readyz()
+
+
+@app.get("/livez")
+def livez():
+    """Report only whether the HTTP process is alive."""
+    return jsonify({"status": "ok"})
+
+
+@app.get("/readyz")
+def readyz():
+    """Report whether the API can serve requests that depend on Redis."""
     start_time = perf_counter()
     if not redis_ping():
-        record_request("/healthz", 503, start_time)
+        record_request("/readyz", 503, start_time)
         return jsonify({"status": "unhealthy", "redis": "unavailable"}), 503
 
-    record_request("/healthz", 200, start_time)
+    record_request("/readyz", 200, start_time)
     return jsonify({"status": "ok", "redis": "available"})
 
 

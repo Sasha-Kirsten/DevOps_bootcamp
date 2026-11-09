@@ -1,3 +1,6 @@
+# NOTE: This is a standalone Kubernetes Service learning example. It is not
+# rendered by the Helm chart and it intentionally uses a LoadBalancer, which may
+# create a billable cloud resource. Keep it separate from chart validation.
 ---
 apiVersion: v1
 kind: Service

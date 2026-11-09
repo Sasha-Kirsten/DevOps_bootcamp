@@ -1,10 +1,14 @@
 appName: nginx-demo
+# TODO: For production, use an image digest (for example image@sha256:...) after
+# scanning and approving it. The current chart constructs image:tag references.
 appImage: nginxinc/nginx-unprivileged
 appVersion: "1.27.4-alpine"
 imagePullPolicy: IfNotPresent
 appReplicas: 1
 containerPort: 8080
 containerEnvVars:
+  # TODO: Do not add credentials here. Add a Secret/ExternalSecret template and
+  # reference sensitive values with valueFrom instead.
   - name: ENV_VAR_ONE
     value: "valueone"
   - name: ENV_VAR_TWO
@@ -16,6 +20,8 @@ service:
   targetPort: 8080
 
 probes:
+  # TODO: Set the path and timing values from the application's real health
+  # contract. Disable only when HTTP probes are not applicable (for example gRPC).
   enabled: true
   path: /
   initialDelaySeconds: 5
@@ -30,6 +36,8 @@ resources:
     memory: 128Mi
 
 ingress:
+  # TODO: When exposing an application, configure a real host, an ingress class,
+  # TLS, and controller-specific security annotations in an environment override.
   enabled: false
   className: nginx
   host: ""

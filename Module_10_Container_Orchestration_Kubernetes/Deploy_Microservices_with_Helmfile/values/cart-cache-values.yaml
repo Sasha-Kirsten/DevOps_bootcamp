@@ -1,0 +1,32 @@
+# ARCHIVED DUPLICATE: helmfile.yaml uses cart-service-values.yaml for the active
+# Redis release. This copy is retained only because repository history currently
+# preserves it. Do not edit or reference it for deployment.
+# TODO: Delete this duplicate in a cleanup commit when Git tracks the removal.
+# Values for the Redis cache Helm release.
+# It is a real Redis container, but no application consumes it yet.
+
+# appName: cart-cache
+# fullnameOverride: cart-cache
+# appImage: redis
+# appVersion: "7.4.2-alpine"
+# imagePullPolicy: IfNotPresent
+# appReplicas: 1
+# containerPort: 6379
+
+# containerEnvVars: []
+# service:
+#   type: ClusterIP
+#   port: 6379
+#   targetPort: 6379
+
+# The reusable chart supports HTTP probes and curl tests only. Redis speaks TCP,
+# so they must remain disabled until that chart supports a TCP or exec probe.
+
+# probes:
+#   enabled: false
+# testConnection:
+#   enabled: false
+
+# TODO: For real cart data, add a Redis-specific StatefulSet, persistent volume,
+# authentication, NetworkPolicy, backups, and a client application that uses this
+# Service. This Deployment is intentionally an ephemeral demonstration cache.

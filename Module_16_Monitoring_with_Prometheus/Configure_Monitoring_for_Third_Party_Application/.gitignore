@@ -1,5 +1,6 @@
 # Never commit third-party connection details or credentials.
 redis-exporter-values.local.yaml
 redis-auth-secret.yaml
+redis-ca-secret.yaml
 *.pem
 *.key

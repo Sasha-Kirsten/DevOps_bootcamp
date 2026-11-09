@@ -1,0 +1,15 @@
+# Local Apple Silicon / Minikube profile for kube-prometheus-stack.
+# Chart 93.0.0 defaults to Prometheus Operator v0.95.1, which did not publish
+# a linux/arm64 manifest at the time this lab was verified. Keep the Operator
+# and its config reloader on the compatible v0.94.1 image.
+prometheusOperator:
+  image:
+    tag: v0.94.1
+  prometheusConfigReloader:
+    image:
+      tag: v0.94.1
+
+# Grafana is optional for the alerting exercise. Disable it in this constrained
+# local profile to leave sufficient Minikube disk space for Prometheus.
+grafana:
+  enabled: false

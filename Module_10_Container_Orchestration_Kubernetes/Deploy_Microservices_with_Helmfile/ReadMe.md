@@ -4,30 +4,32 @@
 
 **Technologies:** Kubernetes, Helm, Helmfile, YAML, Docker, NGINX
 
-This project declaratively deploys two independently versioned microservice releases—`emailservice` and `cartservice`—with Helmfile. Both releases reuse the chart in `../Create_Helm_Chart_for_Microservices`, while this directory owns their Helmfile orchestration and service-specific values.
+This project declaratively deploys two independently versioned releases with Helmfile: a `storefront` website and `cart-cache` Redis cache. Both releases reuse the chart in `../Create_Helm_Chart_for_Microservices`, while this directory owns their Helmfile orchestration and service-specific values.
 
-The deployed workloads use the pinned, unprivileged NGINX image as a deliberately small HTTP demonstration. They are **not** implementations of a real cart or email business service; replacing the image and values with production workloads is the intended next step.
+The storefront runs the real `stefanprodan/podinfo` HTTP demo container and exposes its `/healthz` endpoint. The cache runs a real Redis container. They are **not integrated**: Podinfo does not persist business data in Redis. This is intentionally a runnable orchestration and delivery demo, not a complete online shop.
 
 ## Architecture
 
 ```text
 helmfile.yaml
-	├─ emailservice release ──┐
-	└─ cartservice release ───┼─> reusable microservice Helm chart
-														└─> microservice-demo namespace
+	├─ storefront release ───> Podinfo website :9898
+	└─ cart-cache release ───> Redis cache :6379
+																				└─> microservice-demo namespace
 ```
 
-Each release creates a `Deployment`, `ClusterIP` `Service`, readiness/liveness probes, resource requests/limits, and a Helm test hook inherited from the reusable chart.
+The storefront release creates a `Deployment`, `ClusterIP` `Service`, HTTP readiness/liveness probes, and a Helm test hook. Redis uses the same generic chart but disables HTTP-only probes and tests because Redis requires TCP or exec health checks, which are a documented next chart enhancement.
 
 ## Repository contents
 
 | File | Purpose |
 | --- | --- |
 | `helmfile.yaml` | Authoritative release inventory and safe Helm defaults. |
-| `values/email-service-values.yaml` | Email release image, service, and environment values. |
-| `values/cart-service-values.yaml` | Cart release image, service, and environment values. |
+| `values/email-service-values.yaml` | Active Podinfo storefront image, `/healthz` probe, service, and Helm HTTP test values. The inherited filename should be renamed in a future cleanup commit. |
+| `values/cart-service-values.yaml` | Active Redis cache image and internal Service values, plus documented gaps for production use. The inherited filename should be renamed in a future cleanup commit. |
 | `install.sh` | Guarded Helmfile synchronization wrapper. |
 | `uninstall.sh` | Guarded Helmfile destroy wrapper. |
+
+Two duplicate files—`storefront-values.yaml` and `cart-cache-values.yaml`—are marked **ARCHIVED DUPLICATE** and are not referenced by `helmfile.yaml`. They can be removed in a future Git cleanup commit.
 
 ## Delivery safeguards
 
@@ -78,15 +80,15 @@ Verify the rollout and exercise the HTTP test hooks:
 
 ```sh
 kubectl get deployments,services,pods -n microservice-demo
-kubectl rollout status deployment/emailservice -n microservice-demo
-kubectl rollout status deployment/cartservice -n microservice-demo
+kubectl rollout status deployment/storefront -n microservice-demo
+kubectl rollout status deployment/cart-cache -n microservice-demo
 helmfile test
 ```
 
 For a local HTTP check, port-forward either release:
 
 ```sh
-kubectl port-forward service/emailservice 8080:8080 -n microservice-demo
+kubectl port-forward service/storefront 9898:9898 -n microservice-demo
 ```
 
 ## Cleanup
@@ -105,9 +107,12 @@ kubectl delete namespace microservice-demo
 
 ## Production considerations
 
-- Replace the NGINX demo image with a reviewed application image pinned by digest.
+- Pin the reviewed website and Redis images by digest instead of mutable tags.
+- Add a real cart application that connects to Redis, then add an end-to-end test that proves the data path.
+- Replace the Redis Deployment with a Redis-specific StatefulSet, persistent volume, authentication, backup/restore plan, and dedicated network policy when storing non-ephemeral data.
 - Store credentials in Kubernetes Secrets or an external secret manager, never in values files.
-- Set service-specific requests, limits, probes, autoscaling, and NetworkPolicies based on workload measurements.
+- Extend the generic chart with TCP/exec/gRPC probes and hardened pod-security values before using it for non-HTTP workloads.
+- Set service-specific requests, limits, autoscaling, and NetworkPolicies based on workload measurements.
 - Use a CI identity with least-privilege RBAC and protect the deployment environment with review gates.
 
 ## Verification status

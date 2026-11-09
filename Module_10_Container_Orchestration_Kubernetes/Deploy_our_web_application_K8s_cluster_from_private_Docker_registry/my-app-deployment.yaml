@@ -1,24 +1,46 @@
-apiVersion: apps/v1 
+apiVersion: apps/v1
 kind: Deployment
-metadata: 
-  name: my-app 
-  labels: 
-    app: my-app 
-spec: 
+metadata:
+  name: my-app
+  namespace: private-ecr-demo
+  labels:
+    app.kubernetes.io/name: my-app
+    app.kubernetes.io/part-of: private-ecr-demo
+spec:
   replicas: 1
   selector:
     matchLabels:
-      app: my-app 
+      app.kubernetes.io/name: my-app
   template:
     metadata:
       labels:
-        app: my-app 
+        app.kubernetes.io/name: my-app
+        app.kubernetes.io/part-of: private-ecr-demo
     spec:
-      imagePullPolicy:
-      - name: my-registry-key 
+      automountServiceAccountToken: false
+      # The Secret is created by create-ecr-pull-secret.sh and must reside in
+      # this same namespace. ECR tokens expire, so refresh it before rollout.
+      imagePullSecrets:
+        - name: my-registry-key
       containers:
-      - name: my-app 
-        image: XXXXX.dkr.ecr.eu-central-1.amazonaws.com/XXXX 
-        imagePullPolicy: Always
-        ports:
-        - containerPort: 3000 
+        - name: my-app
+          # TODO: Replace every segment with a reviewed private ECR image,
+          # preferably a digest: <account>.dkr.ecr.<region>.amazonaws.com/<repo>@sha256:<digest>.
+          image: 000000000000.dkr.ecr.eu-central-1.amazonaws.com/replace-me:0.0.0
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

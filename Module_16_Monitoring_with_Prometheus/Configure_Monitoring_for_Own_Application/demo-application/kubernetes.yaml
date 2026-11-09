@@ -35,13 +35,13 @@ spec:
           # files. Do not embed production endpoints, passwords, or TLS material in this manifest.
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet:
-              path: /healthz
+              path: /livez
               port: http
             initialDelaySeconds: 15
             periodSeconds: 20

@@ -5,6 +5,8 @@ metadata:
   name: {{ include "microservice.fullname" . }}
   labels:
     {{- include "microservice.labels" . | nindent 4 }}
+  # TODO: Add values-driven annotations and a TLS section for the selected
+  # ingress controller before enabling public production traffic.
 spec:
   {{- with .Values.ingress.className }}
   ingressClassName: {{ . }}

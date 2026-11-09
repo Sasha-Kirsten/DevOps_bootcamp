@@ -1,0 +1,34 @@
+# ARCHIVED DUPLICATE: helmfile.yaml uses email-service-values.yaml for the active
+# storefront release. This copy is retained only because repository history
+# currently preserves it. Do not edit or reference it for deployment.
+# TODO: Delete this duplicate in a cleanup commit when Git tracks the removal.
+# Values for the storefront Helm release.
+# Podinfo is a real HTTP demonstration application with a health endpoint.
+# appName: storefront
+# fullnameOverride: storefront
+# appImage: stefanprodan/podinfo
+# appVersion: "6.7.1"
+# imagePullPolicy: IfNotPresent
+# appReplicas: 2
+# containerPort: 9898
+
+
+
+# containerEnvVars:
+#   - name: PODINFO_UI_COLOR
+#     value: "#345995"
+
+# service:
+#   type: ClusterIP
+#   port: 9898
+#   targetPort: 9898
+# probes:
+#   enabled: true
+#   path: /healthz
+#   initialDelaySeconds: 5
+#   periodSeconds: 10
+# testConnection:
+#   enabled: true
+
+# TODO: Pin podinfo by digest after verifying the selected image in your own
+# container registry and vulnerability-scanning workflow.

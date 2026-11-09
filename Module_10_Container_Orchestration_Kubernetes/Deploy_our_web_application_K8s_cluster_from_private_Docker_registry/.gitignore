@@ -1,0 +1,3 @@
+# Keep local overrides and credential material out of Git.
+.env.local
+*.dockerconfigjson

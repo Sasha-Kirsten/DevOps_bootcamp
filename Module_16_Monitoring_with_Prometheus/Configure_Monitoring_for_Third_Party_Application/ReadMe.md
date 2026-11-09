@@ -36,6 +36,8 @@ Before deployment, confirm that the exporter’s namespace can reach the provide
 | `redis-exporter-values.yaml` | Helm values template for the Redis endpoint, TLS, authentication, and Prometheus ServiceMonitor discovery. |
 | `redis-auth-secret.example.yaml` | Secret structure example. Never add a real password to this file. |
 | `redis-alert-rules.yaml` | Starter `PrometheusRule` with availability and memory alerts. |
+| `provider-connection-checklist.md` | Non-secret questions and acceptance criteria for the Redis provider or platform team. |
+| `validate.sh` | Renders a configured exporter version and runs server-side schema checks without installing it. |
 | `.gitignore` | Prevents local connection details and real Secret manifests from being committed. |
 | `ReadMe.md` | Setup, validation, dashboard, security, and troubleshooting guide. |
 
@@ -63,6 +65,20 @@ release: monitoring
 
 The skeleton includes that label on both resources.
 
+## The Remaining Piece: Provider-Specific Connectivity
+
+The Kubernetes and Prometheus configuration is ready. The remaining work cannot be completed honestly without a real
+third-party Redis service because it depends on facts only the provider or platform team can supply:
+
+1. Private hostname and port.
+2. Network path from the `monitoring` namespace: private endpoint, peering, VPN, or approved egress plus firewall rules.
+3. TLS mode and CA certificate, if the provider does not use a public CA.
+4. A read-only Redis ACL username/password or access token, including rotation ownership.
+5. Redis topology and provider-supported metrics so alerts can be tuned correctly.
+
+Use `provider-connection-checklist.md` as the handoff document. Do not deploy the exporter with the placeholder endpoint:
+that would create a permanently failing target and a misleading `RedisDown` alert.
+
 ## Configure the Redis Exporter
 
 Copy the values template to an ignored local file:
@@ -82,10 +98,29 @@ with the endpoint provided by the vendor. Enable TLS when required:
 ```yaml
 redisTlsConfig:
 	enabled: true
-	insecureSkipVerify: false
+	skipTlsVerification: false
 ```
 
-Do not disable certificate verification in a production environment. If the vendor uses a private CA, configure the exporter according to the chart’s current TLS/CA support rather than setting `insecureSkipVerify: true`.
+Do not disable certificate verification in a production environment. If the vendor uses a private CA, configure the exporter according to the chart’s current TLS/CA support rather than setting `skipTlsVerification: true`.
+
+The chart accepts a CA certificate from a Kubernetes Secret. Create the Secret outside Git, then fill in the existing
+`caCertFile` fields in the ignored local values file:
+
+```sh
+kubectl create secret generic third-party-redis-ca \
+	--namespace monitoring \
+	--from-file=ca.crt=/secure/path/provider-ca.crt
+```
+
+```yaml
+redisTlsConfig:
+	enabled: true
+	skipTlsVerification: false
+	caCertFile:
+		secret:
+			name: third-party-redis-ca
+			key: ca.crt
+```
 
 ## Configure Authentication Securely
 
@@ -105,6 +140,8 @@ auth:
 	secret:
 		name: third-party-redis-auth
 		key: password
+	# Set when the vendor requires Redis ACL authentication.
+	redisUser: monitoring-exporter
 ```
 
 For GitOps or production deployment, use External Secrets Operator, SOPS, Sealed Secrets, or an approved CI/CD secret store. The secret should be scoped to the `monitoring` namespace and grant only the exporter’s required access.
@@ -121,15 +158,17 @@ helm repo update
 Render the chart before installation:
 
 ```sh
-helm template third-party-redis-exporter prometheus-community/prometheus-redis-exporter \
-	--namespace monitoring \
-	--values redis-exporter-values.local.yaml
+bash validate.sh redis-exporter-values.local.yaml
 ```
+
+`validate.sh` pins the currently verified chart version (`6.37.0`), checks that the endpoint placeholder has been
+replaced, renders the chart, and performs server-side validation. It does **not** make a connection to Redis.
 
 Install or upgrade the exporter:
 
 ```sh
 helm upgrade --install third-party-redis-exporter prometheus-community/prometheus-redis-exporter \
+	--version 6.37.0 \
 	--namespace monitoring \
 	--create-namespace \
 	--values redis-exporter-values.local.yaml
@@ -179,6 +218,31 @@ redis_connected_clients
 rate(redis_commands_processed_total[5m])
 rate(redis_evicted_keys_total[5m])
 ```
+
+### Test in layers
+
+Run the following checks in order. This makes failures easy to attribute instead of treating monitoring as a single
+black box.
+
+1. **Static configuration:** run `bash validate.sh redis-exporter-values.local.yaml` before installation.
+2. **Exporter rollout:** after installation, wait for the Deployment and inspect its logs:
+
+	```sh
+	kubectl rollout status deployment/third-party-redis-exporter-prometheus-redis-exporter \
+	  -n monitoring --timeout=180s
+	kubectl logs deployment/third-party-redis-exporter-prometheus-redis-exporter -n monitoring
+	```
+
+3. **Connectivity and authentication:** query `redis_up` in Prometheus. A value of `1` proves the exporter can reach
+	and authenticate to Redis; `0` means inspect DNS, firewall, TLS, and ACL settings before changing alerts.
+4. **Scrape discovery:** open Prometheus **Status → Targets** and verify the exporter target is `UP`.
+5. **Alert rule loading:** apply `redis-alert-rules.yaml`, then verify it appears in the Prometheus **Alerts** page.
+6. **Notification routing:** after the existing SMTP route is configured, temporarily create a controlled test rule in
+	a non-production environment, prove it reaches Alertmanager and the receiver, then delete it. Do not manufacture a
+	provider outage merely to test email.
+
+The current local stack has Grafana disabled to conserve Minikube storage. Prometheus and Alertmanager verification
+remain fully valid without Grafana; add dashboard validation later when Grafana is enabled and storage is available.
 
 Use those metrics in Grafana panels for availability, memory consumption, client connections, command throughput, and evicted keys. Add provider/environment labels where available and avoid using secrets, customer identifiers, or unbounded IDs as Prometheus labels.
 

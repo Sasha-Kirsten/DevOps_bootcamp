@@ -1,17 +1,28 @@
-# Values for the cartservice Helm release.
-# An unprivileged NGINX image makes this a safe, testable demo workload.
-appName: cartservice
-appImage: nginxinc/nginx-unprivileged
-appVersion: "1.27.4-alpine"
+# Values for the Redis cache Helm release.
+# It is a real Redis container, but no application consumes it yet.
+appName: cart-cache
+fullnameOverride: cart-cache
+appImage: redis
+appVersion: "7.4.2-alpine"
 imagePullPolicy: IfNotPresent
 appReplicas: 1
-containerPort: 8080
+containerPort: 6379
 
-containerEnvVars:
-  - name: SERVICE_ROLE
-    value: "cart"
-
+containerEnvVars: []
 service:
   type: ClusterIP
-  port: 8080
-  targetPort: 8080
+  port: 6379
+  targetPort: 6379
+
+# The reusable chart supports HTTP probes and curl tests only. Redis speaks TCP,
+# so they must remain disabled until that chart supports a TCP or exec probe.
+probes:
+  enabled: false
+testConnection:
+  enabled: false
+
+# TODO: For real cart data, add a Redis-specific StatefulSet, persistent volume,
+# authentication, NetworkPolicy, backups, and a client application that uses this
+# Service. This Deployment is intentionally an ephemeral demonstration cache.
+
+

@@ -1,0 +1,24 @@
+# Opt-in test only. Do not include this file in kustomization.yaml: vector(1)
+# fires continuously and will produce a real notification when routing works.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: application-alert-test-rule
+  namespace: monitoring
+  labels:
+    release: monitoring
+    app.kubernetes.io/part-of: application-alerting-demo
+spec:
+  groups:
+    - name: application.alert-test
+      rules:
+        - alert: ApplicationAlertPipelineTest
+          expr: vector(1)
+          for: 1m
+          labels:
+            severity: warning
+            team: platform
+            test: "true"
+          annotations:
+            summary: Alert pipeline test
+            description: This deliberate test alert validates Prometheus-to-Alertmanager routing. Delete the rule after verification.

@@ -47,6 +47,9 @@ A sidecar exporter would be an additional container in the same Pod as Redis. Th
 | `redis-values.yaml` | Helm values for the Redis exporter, including the Redis endpoint and Prometheus discovery label. |
 | `alert-rule.yaml` | `PrometheusRule` resources for Redis availability, cluster health, and memory alerts. |
 | `alert-manager-configurations.yaml` | `AlertmanagerConfig` for grouping and routing Redis alerts to an SMTP email receiver. |
+| `redis-local.yaml` | Opt-in, ephemeral local Redis dependency for this lab when `redis-cart` is not already deployed. |
+| `create-gmail-secret.sh` | Interactive helper that creates the runtime-only Gmail App Password Secret. |
+| `test-alert-rule.yaml` | Opt-in synthetic alert for testing the full notification pipeline. |
 | `email-secret.yaml` | Secret template only; use it as documentation, not to commit a real Gmail App Password. |
 | `ReadMe.md` | End-to-end installation, verification, dashboard, alerting, and troubleshooting guidance. |
 
@@ -65,6 +68,34 @@ kubectl get svc redis-cart -n default
 kubectl get prometheus,alertmanager -n monitoring
 kubectl api-resources --api-group=monitoring.coreos.com
 ```
+
+### Current local status and learning path
+
+The Prometheus stack is already installed in the `monitoring` namespace. At the time this guide was checked, the
+`redis-cart` Service was not yet present, so installing the exporter before Redis would correctly yield `redis_up = 0`.
+Complete the lab in this order; each step proves one link in the observability chain.
+
+1. Deploy or verify Redis.
+2. Install the Redis exporter and verify `redis_up`.
+3. Build and deploy the instrumented cart API; then generate traffic and verify application metrics.
+4. Apply the Redis alert rules and inspect them in Prometheus.
+5. Configure a real SMTP receiver only if you want to test notifications.
+6. Build a Grafana dashboard from the listed PromQL queries.
+
+### Provide Redis for the local lab
+
+If another project has already deployed `redis-cart`, keep using that Service. Otherwise, deploy the included
+**ephemeral, unauthenticated, single-replica** Redis only for this local exercise:
+
+```sh
+kubectl apply -f redis-local.yaml
+kubectl rollout status deployment/redis-cart -n default
+kubectl get svc redis-cart -n default
+```
+
+This establishes the service DNS name used by both the exporter and demo API. The data is intentionally non-persistent
+and will be lost when the Pod is recreated. Use a managed Redis service or a reviewed Helm chart with persistence,
+TLS, authentication, backup, replication, and a recovery plan for production.
 
 The current Prometheus instance selects `ServiceMonitor` and `PrometheusRule` resources with this label:
 
@@ -143,7 +174,9 @@ The `demo-application/` directory contains a small Redis-backed cart API that is
 | Endpoint | Purpose |
 | --- | --- |
 | `GET /` | Lists the service and available endpoints. |
-| `GET /healthz` | Returns `200` only when the API can reach Redis. |
+| `GET /livez` | Returns `200` while the HTTP process is alive; it does not depend on Redis. |
+| `GET /readyz` | Returns `200` only when the API can reach Redis. |
+| `GET /healthz` | Backward-compatible alias for `/readyz`. |
 | `GET /cart/<user>` | Reads a user’s demo cart from Redis. |
 | `POST /cart/<user>/<item>` | Adds an item to a user’s cart and generates request metrics. |
 | `GET /metrics` | Prometheus metrics endpoint scraped through the included `ServiceMonitor`. |
@@ -152,6 +185,10 @@ Build the image from the demo directory:
 
 ```sh
 cd demo-application
+# Optional: run the application checks in an isolated local environment.
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m py_compile app.py
 docker build -t redis-metrics-demo:1.0.0 .
 ```
 
@@ -174,7 +211,8 @@ Access the API locally and create sample traffic in a separate terminal:
 
 ```sh
 kubectl port-forward service/redis-metrics-demo -n default 8081:8080
-curl http://localhost:8081/healthz
+curl http://localhost:8081/readyz
+curl http://localhost:8081/livez
 curl -X POST http://localhost:8081/cart/aleksander/book
 curl -X POST http://localhost:8081/cart/aleksander/keyboard
 curl http://localhost:8081/cart/aleksander
@@ -229,12 +267,13 @@ The active Alertmanager has an empty `alertmanagerConfigSelector`, so it can sel
 kubectl get alertmanager -n monitoring -o yaml
 ```
 
-Create the email Secret without committing the actual value:
+Update the sender, recipient, and Gmail username fields in `alert-manager-configurations.yaml`; they are intentional
+placeholders. Then create the email Secret without committing the actual value. Enable Gmail two-step verification and
+use an App Password—not your normal Gmail password:
 
 ```sh
-kubectl create secret generic gmail-auth \
-	--namespace monitoring \
-	--from-literal=password='<gmail-app-password>'
+bash create-gmail-secret.sh
+kubectl get secret gmail-auth -n monitoring
 ```
 
 Update the receiver fields in `alert-manager-configurations.yaml` with a real sender and recipient, then validate and apply it:
@@ -243,6 +282,14 @@ Update the receiver fields in `alert-manager-configurations.yaml` with a real se
 kubectl apply --dry-run=server -f alert-manager-configurations.yaml
 kubectl apply -f alert-manager-configurations.yaml
 kubectl get alertmanagerconfig -n monitoring
+```
+
+Test a configured receiver deliberately, then remove the synthetic rule immediately:
+
+```sh
+kubectl apply -f test-alert-rule.yaml
+# Wait at least one minute, then inspect Prometheus and Alertmanager before checking email.
+kubectl delete -f test-alert-rule.yaml
 ```
 
 ## End-to-End Verification
@@ -282,6 +329,7 @@ Then open:
 | Redis cluster alert never appears | Redis is not in cluster mode or the metric is absent. | Query `redis_cluster_slots_fail` in Prometheus. |
 | Rule is not visible in Prometheus | `PrometheusRule` has the wrong kind or is missing `release: monitoring`. | `kubectl get prometheusrule -n monitoring -o yaml` |
 | No email arrives | Incorrect SMTP settings, missing Secret, or AlertmanagerConfig is not selected. | Alertmanager UI/logs and `kubectl get secret gmail-auth -n monitoring` |
+| Demo API keeps restarting while Redis is unavailable | A liveness probe is coupled to a dependency. | This project uses `/livez` for liveness and `/readyz` for Redis-aware readiness; confirm those paths remain configured. |
 | Grafana has no data | Prometheus target is down or the dashboard query uses mismatched labels. | Prometheus targets and direct PromQL queries. |
 
 ## Security and Operations Guidance
