@@ -195,10 +195,6 @@ terraform destroy
 ```
 
 > Use `terraform apply` and `terraform destroy` carefully, especially in shared or production environments.
-
-## License
-
-This project is created for educational purposes as part of the DevOps Bootcamp.
 ## Troubleshooting
 
 ### `terraform init` fails

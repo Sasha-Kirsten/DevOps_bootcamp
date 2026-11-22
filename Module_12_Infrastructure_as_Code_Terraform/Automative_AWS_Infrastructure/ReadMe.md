@@ -166,20 +166,6 @@ terraform destroy
 
 Review the destroy plan before confirming it. Do not run this command against an environment containing resources that must be retained.
 
-## Before Applying
-
-Complete this safety checklist before creating AWS resources:
-
-- [ ] Copy `terraform.tfvars.example` to `terraform.tfvars`.
-- [ ] Replace `key_pair_name` with an existing EC2 key pair in the selected AWS Region.
-- [ ] Replace `203.0.113.10/32` with your current trusted public IP or approved administrator CIDR range.
-- [ ] Review `allowed_http_cidr_blocks`; `0.0.0.0/0` makes the demo web page public.
-- [ ] Confirm AWS authentication works without credentials in Terraform files, for example with `aws sts get-caller-identity`.
-- [ ] Confirm you accept the ongoing NAT gateway and Elastic IP charges while this project exists.
-- [ ] Review `terraform plan` for the exact Region, AMI, tags, and resources before applying.
-
-The configuration discovers the latest Amazon Linux 2023 x86_64 AMI published by Amazon in the chosen Region. Its user-data scripts use `dnf`, matching that operating system.
-
 ## Terraform and AWS Best Practices
 
 - Store Terraform code in Git and review infrastructure changes through pull requests.

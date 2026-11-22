@@ -131,19 +131,6 @@ For an internal `ClusterIP` service, use a temporary port-forward to check the a
 kubectl port-forward service/<application-name> <local-port>:<service-port> -n <namespace>
 ```
 
-## Evidence to show recruiters
-
-Present the workflow, not secrets:
-
-1. Show `k8s/` and explain labels, selectors, probes, resource settings, and pod security controls.
-2. Show that the Jenkins validation stage passes before deployment is enabled.
-3. Show the opt-in deployment flag and manual approval gate.
-4. Explain that kubeconfig is injected from Jenkins credentials, not committed to Git.
-5. Show a successful `kubectl rollout status`, Ready Pods, and a health response through port-forward or an Ingress.
-6. Show the immutable image tag in the Jenkins log and workload specification.
-
-Redact cluster endpoints, kubeconfig data, credential IDs, tokens, private registry URLs, and any internal IP addresses from screenshots.
-
 ## Production-minded improvements
 
 - Use separate development, staging, and production namespaces/clusters with approval controls appropriate to each environment.

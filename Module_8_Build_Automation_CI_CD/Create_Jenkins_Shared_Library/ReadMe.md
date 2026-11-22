@@ -87,14 +87,6 @@ The registry password is supplied to `docker login` through standard input and i
 
 This repository contains pipeline/library code, not a Maven application, Dockerfile, Kubernetes manifest, Jenkins controller, or registry credentials. Static validation can verify the layout, expected shared-library methods, safe defaults, and absence of known unsafe patterns. A full Jenkins run requires an application repository and a configured Jenkins environment; it should be performed only against non-production registry and cluster targets first.
 
-## Recruiter walkthrough
-
-1. Show `vars/ciSteps.groovy` and explain the `vars/` global-variable convention.
-2. Open `Jenkinsfile` to show consumption through `@Library(...)` and `ciSteps.*`.
-3. Point out that Maven verification occurs before image construction.
-4. Show the default-disabled publication/deployment flags and the manual deployment approval.
-5. Explain that credentials are managed in Jenkins rather than committed to source control.
-
 ## References
 
 - [Jenkins Shared Libraries](https://www.jenkins.io/doc/book/pipeline/shared-libraries/)

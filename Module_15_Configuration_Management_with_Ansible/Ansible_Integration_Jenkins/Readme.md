@@ -21,20 +21,6 @@ Docker installed and deployment user created
 
 > **Current project status:** This project is a presentation-ready development baseline. It includes a validation-first Jenkins Pipeline, explicit EC2 discovery filters, a one-host-at-a-time Docker configuration playbook, and pinned Ansible collection requirements. It has not been run against a real Jenkins control node or EC2 target from this repository.
 
-## How to Present This to Recruiters
-
-Describe the project in outcome-focused terms:
-
-> “I created a Jenkins-driven Ansible workflow that discovers only explicitly tagged development EC2 instances, validates the automation before making changes, and uses a separate Ansible control node to install and enable Docker plus a dedicated deployment user. The pipeline requires an explicit approval parameter before it can modify a host.”
-
-Demonstrate these three pieces in a portfolio walkthrough:
-
-1. **Safety:** show `inventory_aws_ec2.yaml`. Its `Project`, `Environment`, `Role`, and `AnsibleManaged` filters prevent an accidental account-wide rollout.
-2. **Repeatability:** show `requirements.yml`, `ansible.cfg`, and the `deploy-docker-new-user.yaml` playbook. Explain that package installation, service enablement, and user creation are idempotent.
-3. **Delivery controls:** show `Jenkinsfile`. `APPLY_CHANGES` defaults to `false`, so normal builds perform syntax and inventory validation only; an operator must explicitly opt in before a change is applied.
-
-For screenshots or a short demo video, capture a successful Jenkins validation build, the dynamic inventory graph showing only a disposable development host, and the final `docker --version` / `id linux_user` verification on that host. Redact IP addresses, AWS account IDs, key paths, credentials, and Jenkins secrets.
-
 ## Roles in the Architecture
 
 | Component | Responsibility |

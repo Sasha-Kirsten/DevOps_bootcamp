@@ -132,15 +132,6 @@ Open `http://localhost:8080` while the port-forward is active.
 - Avoid putting secrets, kubeconfig files, account IDs, or subnet IDs into version-controlled files.
 - Use a separate development account or tightly controlled sandbox. Fargate and EKS cost money while they run.
 
-## Recruiter walkthrough
-
-1. Start with `provision.yaml` or `main.tf` and explain why you chose that provisioning approach.
-2. Show that the Fargate profile selector and NGINX Pod labels are deliberately aligned.
-3. Explain that CoreDNS must also be schedulable in a Fargate-only cluster.
-4. Show `nginx-config.yaml` security controls, probes, resource requests/limits, and internal Service.
-5. Demonstrate a `Ready` Fargate Pod, successful rollout, and port-forwarded HTTP response.
-6. Show your cleanup workflow and explain cost awareness.
-
 ## Cleanup
 
 For the Terraform path, destroy only after confirming the target account and cluster:

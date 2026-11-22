@@ -78,15 +78,6 @@ When the learning environment is no longer required, remove it to stop charges:
 ```text
 terraform destroy
 ```
-
-## Recruiter walkthrough
-
-1. Start with `main.tf` to explain the multi-AZ network and private worker-node design.
-2. Open `eks-cluster.tf` to show managed node groups, add-ons, IRSA, logging, and private-by-default API access.
-3. Show the successful `terraform fmt`, initialization, and validation output.
-4. If an approved disposable AWS account is available, present a reviewed `terraform plan` or deployment evidence without exposing account IDs, endpoints, credentials, or state.
-5. Explain how a Docker image would be deployed to this cluster using Kubernetes manifests or Helm once the infrastructure is ready.
-
 ## References
 
 - [Terraform AWS EKS module](https://registry.terraform.io/modules/terraform-aws-modules/eks/aws/latest)

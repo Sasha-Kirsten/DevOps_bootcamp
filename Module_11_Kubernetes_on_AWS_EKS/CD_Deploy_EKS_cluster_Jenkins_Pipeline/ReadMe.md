@@ -102,20 +102,6 @@ For a temporary local check of an internal service:
 kubectl port-forward service/<application-name> <local-port>:<service-port> -n <application-namespace>
 ```
 
-## Evidence to show recruiters
-
-Show a concise end-to-end narrative instead of exposing credentials or raw configuration files:
-
-1. The manifest-validation stage succeeds before deployment.
-2. The Jenkins build displays the immutable image tag it deploys.
-3. The deployment requires opt-in and a human approval.
-4. The temporary kubeconfig is generated from AWS credentials and removed after the build.
-5. `kubectl rollout status` succeeds and Pods are `Ready`.
-6. The deployed application returns a health response through its Service or Ingress.
-7. Jenkins has least-privilege AWS and Kubernetes access rather than embedded credentials.
-
-Capture screenshots of successful stage output, rollout state, and health response—but redact AWS account IDs, internal endpoints, tokens, kubeconfig data, and credential IDs where appropriate.
-
 ## Production-minded improvements
 
 - Use IAM Roles for Service Accounts for application-level AWS access.
